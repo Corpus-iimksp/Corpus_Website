@@ -62,7 +62,7 @@ export default function Navbar() {
                 CORPUS
               </span>
               <span className="hidden md:inline-block text-[9px] font-semibold text-zinc-500 tracking-tight mt-0.5">
-                Crack Cases. Learn Faster. Win Bigger.
+                Crack Cases. Learn Faster.
               </span>
             </div>
           </Link>
