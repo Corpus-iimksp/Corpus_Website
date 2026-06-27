@@ -2,22 +2,7 @@ import { useStore } from './store';
 
 // Helper to log and trigger an in-app notification representing the email
 const dispatchMockEmail = (subject: string, to: string, content: string) => {
-  console.log(`[SendGrid Email Sent]\nTo: ${to}\nSubject: ${subject}\nBody:\n${content}\n-------------------`);
-  
-  // Since useStore might be imported, we trigger notifications safely
-  try {
-    // Dynamic import to avoid circular dependency since store uses db/email
-    const { addSystemNotification } = require('./store');
-    addSystemNotification({
-      id: `email-${Date.now()}`,
-      title: `✉️ Email Alert: ${subject}`,
-      message: `Sent to: ${to}\n\n${content}`,
-      type: 'email',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
-  } catch (e) {
-    // Fallback if store isn't fully loaded
-  }
+  console.log(`[SendGrid Email Sent]\nFrom: teamcorpus@iimkashipur.ac.in\nTo: ${to}\nSubject: ${subject}\nBody:\n${content}\n-------------------`);
 };
 
 export const emailService = {
@@ -34,14 +19,16 @@ export const emailService = {
   },
 
   sendSessionConfirmationEmail: (studentName: string, studentEmail: string, mentorName: string, mentorEmail: string, time: string, zoomLink: string) => {
+    const zoomId = zoomLink.split('/').pop() || 'N/A';
+    
     // To student
     const studentSubject = 'Mentorship Session Confirmed';
-    const studentContent = `Hi ${studentName},\n\nYour session with ${mentorName} is confirmed for ${time}.\nZoom Link: ${zoomLink}\n\nPrepare your questions and pitch deck beforehand.`;
+    const studentContent = `Hi ${studentName},\n\nYour session with ${mentorName} is confirmed for ${time}.\nZoom Link: ${zoomLink}\nZoom Meeting ID: ${zoomId}\n\nPrepare your questions and pitch deck beforehand.`;
     dispatchMockEmail(studentSubject, studentEmail, studentContent);
 
     // To mentor
     const mentorSubject = 'Mentorship Session Booked';
-    const mentorContent = `Hi ${mentorName},\n\nYou have a confirmed mentoring session with ${studentName} on ${time}.\nZoom Link: ${zoomLink}\n\nPlease join the meeting on time.`;
+    const mentorContent = `Hi ${mentorName},\n\nYou have a confirmed mentoring session with ${studentName} on ${time}.\nZoom Link: ${zoomLink}\nZoom Meeting ID: ${zoomId}\n\nPlease join the meeting on time.`;
     dispatchMockEmail(mentorSubject, mentorEmail, mentorContent);
   },
 

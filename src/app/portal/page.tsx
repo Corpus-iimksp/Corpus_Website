@@ -12,14 +12,13 @@ import {
   Sparkles, 
   Plus, 
   Search, 
-  BadgeCheck, 
   Video, 
   MessageSquare, 
   Users, 
-  Trophy, 
   ArrowRight,
   Upload,
-  Heart
+  Heart,
+  Lock
 } from 'lucide-react';
 
 interface TeamListing {
@@ -59,10 +58,24 @@ export default function StudentPortal() {
     bookings, 
     meetings, 
     addSystemNotification,
-    refreshData
+    refreshData,
+    currentRole
   } = useStore();
 
-  const [activePortalTab, setActivePortalTab] = useState<'dashboard' | 'profile' | 'coach' | 'team' | 'recommend'>('dashboard');
+  const [activePortalTab, setActivePortalTab] = useState<'dashboard' | 'profile' | 'team'>('dashboard');
+  const [mounted, setMounted] = useState(false);
+
+  // Competition stages mapping
+  const [competitionStages, setCompetitionStages] = useState<Record<string, 'saved' | 'participated' | 'shortlisted' | 'won'>>({});
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedStages = localStorage.getItem('corpus_competition_stages');
+      if (savedStages) {
+        setCompetitionStages(JSON.parse(savedStages));
+      }
+    }
+  }, []);
 
   // Profile Form States
   const [profileName, setProfileName] = useState(currentStudent?.name || '');
@@ -73,12 +86,9 @@ export default function StudentPortal() {
   const [profileInterests, setProfileInterests] = useState<string[]>(currentStudent?.interests || []);
   const [resumeName, setResumeName] = useState(currentStudent?.resume || '');
 
-  // AI Coach Chat States
-  const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'coach'; text: string }[]>([
-    { role: 'coach', text: 'Hello! I am your CORPUS AI Case Coach. Ask me how to structure or approach any case study (e.g. "How do I solve a profitability drop?") and I will draft a consulting plan.' }
-  ]);
-  const [isCoachThinking, setIsCoachThinking] = useState(false);
+  const [profileWins, setProfileWins] = useState(currentStudent?.wins || 0);
+  const [profileShortlists, setProfileShortlists] = useState(currentStudent?.shortlists || 0);
+  const [profileParticipations, setProfileParticipations] = useState(currentStudent?.participations || 0);
 
   // Team Finder States
   const [teamListings, setTeamListings] = useState<TeamListing[]>(DEFAULT_TEAM_LISTINGS);
@@ -98,8 +108,60 @@ export default function StudentPortal() {
       setProfileLinkedin(currentStudent.linkedin);
       setProfileInterests(currentStudent.interests);
       setResumeName(currentStudent.resume);
+      setProfileWins(currentStudent.wins || 0);
+      setProfileShortlists(currentStudent.shortlists || 0);
+      setProfileParticipations(currentStudent.participations || 0);
     }
   }, [currentStudent]);
+
+  // Handle Competition stage transition in Pipeline Tracker
+  const handleStageTransition = (compId: string, nextStage: 'saved' | 'participated' | 'shortlisted' | 'won') => {
+    if (!currentStudent) return;
+    
+    const currentStage = competitionStages[compId] || 'saved';
+    if (currentStage === nextStage) return;
+
+    // 1. Update stages map
+    const updatedStages = { ...competitionStages, [compId]: nextStage };
+    setCompetitionStages(updatedStages);
+    localStorage.setItem('corpus_competition_stages', JSON.stringify(updatedStages));
+
+    // 2. Compute deltas
+    const stageWeights = {
+      saved: { wins: 0, shortlists: 0, participations: 0 },
+      participated: { wins: 0, shortlists: 0, participations: 1 },
+      shortlisted: { wins: 0, shortlists: 1, participations: 1 },
+      won: { wins: 1, shortlists: 1, participations: 1 }
+    };
+
+    const deltaWins = stageWeights[nextStage].wins - stageWeights[currentStage].wins;
+    const deltaShortlists = stageWeights[nextStage].shortlists - stageWeights[currentStage].shortlists;
+    const deltaParticipations = stageWeights[nextStage].participations - stageWeights[currentStage].participations;
+
+    updateStudent({
+      ...currentStudent,
+      wins: Math.max(0, (currentStudent.wins || 0) + deltaWins),
+      shortlists: Math.max(0, (currentStudent.shortlists || 0) + deltaShortlists),
+      participations: Math.max(0, (currentStudent.participations || 0) + deltaParticipations)
+    });
+
+    // 3. Add system notification
+    const compObj = competitions.find(c => c.id === compId);
+    if (compObj) {
+      const isBackward = stageWeights[nextStage].participations < stageWeights[currentStage].participations ||
+                         stageWeights[nextStage].shortlists < stageWeights[currentStage].shortlists ||
+                         stageWeights[nextStage].wins < stageWeights[currentStage].wins;
+      
+      const stageName = nextStage === 'saved' ? 'Bookmarked' : nextStage === 'participated' ? 'Participated' : nextStage === 'shortlisted' ? 'Shortlisted' : 'National Win';
+      addSystemNotification({
+        id: `stage-${compId}-${Date.now()}`,
+        title: isBackward ? '🔄 Milestone Reset' : `🏆 Milestone: ${stageName}`,
+        message: `"${compObj.title}" moved to ${stageName.toLowerCase()} segment. Stats updated accordingly!`,
+        type: 'system',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
+    }
+  };
 
   // Handle Profile Update
   const handleProfileSave = (e: React.FormEvent) => {
@@ -114,13 +176,16 @@ export default function StudentPortal() {
       year: profileYear,
       linkedin: profileLinkedin,
       interests: profileInterests,
-      resume: resumeName || 'uploaded_resume.pdf'
+      resume: resumeName || 'uploaded_resume.pdf',
+      wins: profileWins,
+      shortlists: profileShortlists,
+      participations: profileParticipations
     });
 
     addSystemNotification({
       id: `profile-save-${Date.now()}`,
       title: '👤 Profile Saved Successfully',
-      message: 'Your portal details and areas of interest have been updated.',
+      message: 'Your portal details and track record values have been updated.',
       type: 'system',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
@@ -136,55 +201,7 @@ export default function StudentPortal() {
     }
   };
 
-  // AI Coach logic
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
 
-    const userText = chatInput;
-    setChatMessages(prev => [...prev, { role: 'user', text: userText }]);
-    setChatInput('');
-    setIsCoachThinking(true);
-
-    // Simulated consulting AI response based on keywords
-    setTimeout(() => {
-      let coachReply = 'That is an interesting case question. To solve this, apply a MECE structural framework. Break down the problem into key segments, form hypotheses, and identify variables you need from the case booklet.';
-      
-      const query = userText.toLowerCase();
-      if (query.includes('profit') || query.includes('revenue') || query.includes('cost')) {
-        coachReply = `Let's break down this Profitability Case. Use the Profitability Framework:
-1. Isolate the drop: Is Revenue falling or are Costs rising?
-2. If Revenue is down: Is it volume (Q) dropping or pricing (P) pressures? Check market demand and competitor price Matching.
-3. If Cost is up: Are Fixed Overheads rising or Variable costs spiking?
-4. Recommendation: Once drivers are isolated, propose 2 short-term quick wins and 1 long-term strategic pivot.`;
-      } else if (query.includes('market entry') || query.includes('new market')) {
-        coachReply = `Here is how to structure a Market Entry Case:
-1. Market Attractiveness: Size, growth rate, margins, and competitor strengths.
-2. Financials: Initial capital required, expected payback period, and break-even sales.
-3. Operational Capability: Do we have distribution, sourcing, and localized regulatory compliance?
-4. Entry Mode: Should we acquire a local competitor (M&A), enter organically, or form a JV?`;
-      } else if (query.includes('marketing') || query.includes('gtm') || query.includes('launch')) {
-        coachReply = `For a GTM or Product Launch case, outline a 5-step GTM roadmap:
-1. Customer Segmentation: Define primary and secondary target user personas (like Gen-Z MBA students vs. corporate professionals).
-2. Product Proposition: What is the core USP?
-3. Channels: Direct-to-Consumer (D2C), organic social campaigns, or corporate affiliate partnerships.
-4. Pricing & Promos: Penetration pricing vs. premium positioning.
-5. Metrics: Track CAC (Customer Acquisition Cost) and LTV (Customer Lifetime Value).`;
-      }
-
-      setChatMessages(prev => [...prev, { role: 'coach', text: coachReply }]);
-      setIsCoachThinking(false);
-
-      // Trigger XP increment alert simulated
-      addSystemNotification({
-        id: `coach-chat-${Date.now()}`,
-        title: '🤖 Coach Session Complete',
-        message: 'Completed AI chat consulting structured review. Solved prompt tracker updated.',
-        type: 'system',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      });
-    }, 1200);
-  };
 
   // Team Finder Listing creation
   const handlePostTeam = (e: React.FormEvent) => {
@@ -215,14 +232,26 @@ export default function StudentPortal() {
     alert('Teammate post published successfully!');
   };
 
-  // Recommendation Engine: recommend based on selected student interest
-  const recommendedCompetitions = competitions.filter(comp => {
-    const studentInterests = currentStudent?.interests || [];
-    return studentInterests.includes(comp.category);
-  });
+
 
   // Saved Competitions Details
   const savedCompsDetails = competitions.filter(comp => savedCompetitions.includes(comp.id));
+
+  // Filter Saved Challenges by Pipeline Stage
+  const savedCases = savedCompsDetails.filter(comp => {
+    const stage = competitionStages[comp.id] || 'saved';
+    return stage === 'saved';
+  });
+
+  const participatedCases = savedCompsDetails.filter(comp => {
+    const stage = competitionStages[comp.id];
+    return stage === 'participated';
+  });
+
+  const shortlistedAndWonCases = savedCompsDetails.filter(comp => {
+    const stage = competitionStages[comp.id];
+    return stage === 'shortlisted' || stage === 'won';
+  });
 
   // Student booked sessions details
   // Filter bookings that match the student ID
@@ -230,8 +259,25 @@ export default function StudentPortal() {
 
   // Sync state data on load
   useEffect(() => {
+    setMounted(true);
     refreshData();
   }, []);
+
+  if (mounted && !currentStudent && currentRole !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 max-w-md mx-auto space-y-6">
+        <div className="p-4 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+          <Lock className="w-10 h-10 animate-pulse" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-white">Student Portal Locked</h2>
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            Authorized access only. Please sign in with your verified college email address ending with <span className="text-indigo-400 font-semibold">@iimkashipur.ac.in</span> using the Sign In button in the navigation bar to access the dashboard.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-transparent text-zinc-100 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -245,7 +291,7 @@ export default function StudentPortal() {
           👤 Student Portal
         </h1>
         <p className="text-xs text-zinc-500 mt-1">
-          Monitor your preparation stats, update interest niches, chat with the AI Coach, and search for teammates.
+          Monitor your preparation stats, update interest niches, and search for teammates.
         </p>
       </div>
 
@@ -261,16 +307,7 @@ export default function StudentPortal() {
         >
           📊 Preparation Dashboard
         </button>
-        <button
-          onClick={() => setActivePortalTab('coach')}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all shrink-0 ${
-            activePortalTab === 'coach' 
-              ? 'border-indigo-500 text-indigo-300 bg-indigo-500/5' 
-              : 'border-transparent text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          🤖 AI Case Coach
-        </button>
+
         <button
           onClick={() => setActivePortalTab('team')}
           className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all shrink-0 ${
@@ -281,16 +318,7 @@ export default function StudentPortal() {
         >
           👥 Team Finder Board
         </button>
-        <button
-          onClick={() => setActivePortalTab('recommend')}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all shrink-0 ${
-            activePortalTab === 'recommend' 
-              ? 'border-indigo-500 text-indigo-300 bg-indigo-500/5' 
-              : 'border-transparent text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          💡 AI Smart Match Recommendations
-        </button>
+
         <button
           onClick={() => setActivePortalTab('profile')}
           className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all shrink-0 ${
@@ -336,63 +364,149 @@ export default function StudentPortal() {
                 </div>
               </div>
             </div>
-
-            {/* Achievement Badges */}
-            <div className="glass-panel p-6 rounded-2xl border-white/5">
-              <h3 className="text-sm font-black text-white uppercase tracking-wider mb-4">Unlocked Badges</h3>
-              
-              <div className="space-y-3">
-                {currentStudent?.badges.map((badge, idx) => (
-                  <div key={idx} className="flex items-center gap-3 p-2.5 bg-zinc-900/40 border border-white/5 rounded-xl">
-                    <div className="w-9 h-9 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400">
-                      <Trophy className="w-5 h-5 fill-current" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-xs text-zinc-200">{badge}</h4>
-                      <span className="text-[9px] text-zinc-500">Unlocked via verified milestones</span>
-                    </div>
-                  </div>
-                ))}
-                {(!currentStudent?.badges || currentStudent.badges.length === 0) && (
-                  <div className="text-center py-4 text-xs text-zinc-600">
-                    Solve cases or apply to challenges to unlock badges.
-                  </div>
-                )}
-              </div>
-            </div>
-
           </div>
 
-          {/* Right Panel: Active bookmarks & upcoming zoom sessions */}
           <div className="lg:col-span-2 space-y-6">
-            
-            {/* Bookmarked Competitions */}
-            <div className="glass-panel p-6 rounded-2xl border-white/5">
-              <h3 className="text-sm font-black text-white uppercase tracking-wider mb-4">Saved Case Challenges</h3>
-              
-              <div className="space-y-3">
-                {savedCompsDetails.length === 0 ? (
-                  <div className="text-center py-8 text-xs text-zinc-500 border border-dashed border-white/5 rounded-xl">
-                    You haven&rsquo;t bookmarked any competition yet. Go to the dashboard to save items.
+            <div className="glass-panel p-6 rounded-2xl border-white/5 space-y-6">
+              <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-wider">Case Challenge Tracker Pipeline</h3>
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  Track your competition milestones automatically. Transition saved challenges from saved, to participated, to shortlisted, and won!
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                
+                {/* Column 1: Saved (Bookmarked but not participated yet) */}
+                <div className="bg-zinc-950/40 p-4 rounded-xl border border-white/5 space-y-3 flex flex-col min-h-[300px]">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-3">
+                    <span className="text-[10px] font-black text-zinc-400 uppercase">📌 Bookmarked ({savedCases.length})</span>
                   </div>
-                ) : (
-                  savedCompsDetails.map(comp => (
-                    <div key={comp.id} className="p-4 bg-zinc-900/40 border border-white/5 rounded-xl flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-                      <div>
-                        <h4 className="font-bold text-sm text-zinc-200">{comp.title}</h4>
-                        <span className="text-xs text-zinc-500">{comp.company} | Deadline: {comp.deadline}</span>
+                  <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-none flex-1">
+                    {savedCases.length === 0 ? (
+                      <div className="text-center py-12 text-[10px] text-zinc-650 italic">
+                        No bookmarked cases. Save opportunities from the dashboard.
                       </div>
-                      <a
-                        href={comp.apply_link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-3.5 py-1.5 bg-zinc-800 text-zinc-300 hover:text-white rounded-lg text-xs font-bold border border-white/5 text-center flex items-center justify-center gap-1.5 shrink-0"
-                      >
-                        Launch Direct <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    </div>
-                  ))
-                )}
+                    ) : (
+                      savedCases.map(comp => (
+                        <div key={comp.id} className="p-3 bg-zinc-900/50 border border-white/5 rounded-lg text-[11px] space-y-2 text-left">
+                          <div className="font-bold text-zinc-250 leading-tight">{comp.title}</div>
+                          <div className="text-[9px] text-zinc-550 leading-tight">{comp.company}</div>
+                          <button
+                            onClick={() => handleStageTransition(comp.id, 'participated')}
+                            className="w-full py-1.5 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white rounded text-[10px] font-bold text-indigo-400 flex items-center justify-center gap-1 transition-all"
+                          >
+                            🚀 Participate
+                          </button>
+                           <div className="flex items-center mt-4" onClick={e => e.stopPropagation()}>
+                                              <a
+                                                href={comp.apply_link}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="w-full text-center py-2 rounded-lg text-[10px] font-bold bg-indigo-600/95 hover:bg-indigo-500 text-white shadow-sm transition-colors flex items-center justify-center gap-1.5"
+                                              >
+                                                Register Now <ExternalLink className="w-3 h-3" />
+                                              </a>
+                                            </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Column 2: Participated (Participated but not shortlisted) */}
+                <div className="bg-zinc-950/40 p-4 rounded-xl border border-white/5 space-y-3 flex flex-col min-h-[300px]">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-3">
+                    <span className="text-[10px] font-black text-purple-400 uppercase">🚀 Participated ({participatedCases.length})</span>
+                  </div>
+                  <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-none flex-1">
+                    {participatedCases.length === 0 ? (
+                      <div className="text-center py-12 text-[10px] text-zinc-650 italic">
+                        Click "Participate" on saved challenges to track them here.
+                      </div>
+                    ) : (
+                      participatedCases.map(comp => (
+                        <div key={comp.id} className="p-3 bg-zinc-900/50 border border-white/5 rounded-lg text-[11px] space-y-2 text-left">
+                          <div className="font-bold text-zinc-250 leading-tight">{comp.title}</div>
+                          <div className="text-[9px] text-zinc-550 leading-tight">{comp.company}</div>
+                          <button
+                            onClick={() => handleStageTransition(comp.id, 'shortlisted')}
+                            className="w-full py-1.5 bg-purple-500/10 hover:bg-purple-500 hover:text-white rounded text-[10px] font-bold text-purple-400 flex items-center justify-center gap-1 transition-all"
+                          >
+                            🏆 Shortlist
+                          </button>
+                          <button
+                            onClick={() => handleStageTransition(comp.id, 'saved')}
+                            className="w-full text-[9px] text-zinc-500 hover:text-zinc-300 hover:underline transition-all block text-center mt-1"
+                          >
+                            ← Move to Saved
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Column 3: Shortlisted & Won */}
+                <div className="bg-zinc-950/40 p-4 rounded-xl border border-white/5 space-y-3 flex flex-col min-h-[300px]">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-3">
+                    <span className="text-[10px] font-black text-emerald-400 uppercase">🥇 Shortlisted & Wins ({shortlistedAndWonCases.length})</span>
+                  </div>
+                  <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-none flex-1">
+                    {shortlistedAndWonCases.length === 0 ? (
+                      <div className="text-center py-12 text-[10px] text-zinc-650 italic">
+                        Milestones reached will appear here.
+                      </div>
+                    ) : (
+                      shortlistedAndWonCases.map(comp => {
+                        const isWon = competitionStages[comp.id] === 'won';
+                        return (
+                          <div 
+                            key={comp.id} 
+                            className={`p-3 border rounded-lg text-[11px] space-y-2 text-left transition-all ${
+                              isWon 
+                                ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-300 shadow-md shadow-emerald-500/5' 
+                                : 'bg-zinc-900/50 border-white/5 text-zinc-250'
+                            }`}
+                          >
+                            <div className="font-bold leading-tight">{comp.title}</div>
+                            <div className={`text-[9px] leading-tight ${isWon ? 'text-emerald-500/70' : 'text-zinc-550'}`}>{comp.company}</div>
+                            
+                            {isWon ? (
+                              <div className="space-y-1.5">
+                                <div className="w-full py-1 text-center font-black text-[9px] uppercase tracking-wider text-emerald-400 bg-emerald-500/10 rounded border border-emerald-500/20 flex items-center justify-center gap-1 animate-pulse">
+                                  👑 National Winner
+                                </div>
+                                <button
+                                  onClick={() => handleStageTransition(comp.id, 'shortlisted')}
+                                  className="w-full text-[9px] text-emerald-500/70 hover:text-emerald-400 hover:underline transition-all block text-center font-semibold"
+                                >
+                                  ← Undo Win (Shortlisted)
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="space-y-1.5">
+                                <button
+                                  onClick={() => handleStageTransition(comp.id, 'won')}
+                                  className="w-full py-1.5 bg-emerald-500/10 hover:bg-emerald-500 hover:text-black rounded text-[10px] font-bold text-emerald-400 flex items-center justify-center gap-1 transition-all"
+                                >
+                                  🥇 National Win
+                                </button>
+                                <button
+                                  onClick={() => handleStageTransition(comp.id, 'participated')}
+                                  className="w-full text-[9px] text-zinc-500 hover:text-zinc-300 hover:underline transition-all block text-center"
+                                >
+                                  ← Move to Participated
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
               </div>
             </div>
 
@@ -424,9 +538,11 @@ export default function StudentPortal() {
                               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
                               : booking.status === 'rejected'
                               ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                              : booking.status === 'pending_mentor'
+                              ? 'bg-purple-500/10 border-purple-500/20 text-purple-300'
                               : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
                           }`}>
-                            {booking.status}
+                            {booking.status === 'pending_admin' ? 'Admin Verifying' : booking.status === 'pending_mentor' ? 'Mentor Reviewing' : booking.status}
                           </span>
                         </div>
 
@@ -450,6 +566,17 @@ export default function StudentPortal() {
                           </div>
                         )}
                         
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-zinc-900/20 p-3 border border-white/5 rounded-xl text-xs my-3">
+                          <div>
+                            <span className="text-[9px] uppercase font-bold text-zinc-500 block mb-0.5">Competition</span>
+                            <span className="text-zinc-300 font-bold">{booking.competition_name || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] uppercase font-bold text-zinc-500 block mb-0.5">Clearing Proof Document</span>
+                            <span className="text-indigo-400 font-semibold">📄 {booking.proof_url || 'No document'}</span>
+                          </div>
+                        </div>
+
                         <p className="text-xs text-zinc-400 leading-relaxed italic mt-2">
                           <strong>Note sent to mentor:</strong> &ldquo;{booking.notes}&rdquo;
                         </p>
@@ -465,65 +592,7 @@ export default function StudentPortal() {
         </div>
       )}
 
-      {/* 2. AI CASE COACH */}
-      {activePortalTab === 'coach' && (
-        <div className="glass-panel rounded-2xl border-white/5 overflow-hidden flex flex-col h-[500px]">
-          {/* Chat Header */}
-          <div className="bg-zinc-900/80 p-4 border-b border-white/5 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-              <Sparkles className="w-5 h-5 animate-pulse" />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-sm text-zinc-200">AI Case Coach</h3>
-              <span className="text-[10px] text-zinc-500 font-semibold block">Ask about GTM, Profitability, Pricing, Market Entry structuring</span>
-            </div>
-          </div>
 
-          {/* Messages Feed */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {chatMessages.map((msg, i) => (
-              <div 
-                key={i} 
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`max-w-[80%] rounded-xl p-3.5 text-xs leading-relaxed whitespace-pre-line ${
-                  msg.role === 'user'
-                    ? 'bg-indigo-500 text-white rounded-tr-none'
-                    : 'bg-zinc-900 border border-white/5 text-zinc-300 rounded-tl-none'
-                }`}>
-                  {msg.text}
-                </div>
-              </div>
-            ))}
-            
-            {isCoachThinking && (
-              <div className="flex justify-start">
-                <div className="bg-zinc-900 border border-white/5 text-zinc-500 rounded-xl rounded-tl-none p-3.5 text-xs animate-pulse">
-                  AI Coach is structuring MECE analysis...
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Form Input */}
-          <form onSubmit={handleSendMessage} className="bg-zinc-900/40 p-4 border-t border-white/5 flex gap-2">
-            <input
-              type="text"
-              required
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Ask: 'How should I structure a growth case study?'..."
-              className="flex-1 bg-zinc-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500/50"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 rounded-xl text-xs font-bold text-white transition-colors"
-            >
-              Ask Coach
-            </button>
-          </form>
-        </div>
-      )}
 
       {/* 3. TEAM FINDER BOARD */}
       {activePortalTab === 'team' && (
@@ -646,53 +715,7 @@ export default function StudentPortal() {
         </div>
       )}
 
-      {/* 4. RECOMMENDATIONS ENGINE */}
-      {activePortalTab === 'recommend' && (
-        <div className="space-y-6">
-          <div className="bg-indigo-950/10 border border-indigo-500/10 p-5 rounded-2xl">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-5 h-5 text-indigo-400" />
-              <h3 className="font-black text-sm text-zinc-200">CORPUS AI Recommender</h3>
-            </div>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              We analyzed your student profile and registered interests ({currentStudent?.interests.join(', ') || 'None Selected'}). Here are your top personalized live matches.
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {recommendedCompetitions.length === 0 ? (
-              <div className="col-span-2 text-center py-12 text-xs text-zinc-500 border border-dashed border-white/5 rounded-2xl">
-                Go to the &ldquo;Profile Registration&rdquo; tab and check areas of interest to populate personalized matches.
-              </div>
-            ) : (
-              recommendedCompetitions.map(comp => (
-                <div key={comp.id} className="glass-card p-6 rounded-2xl flex flex-col justify-between">
-                  <div>
-                    <span className="px-2.5 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[9px] font-bold uppercase tracking-wider block w-max mb-3">
-                      {comp.category} Match (98% Relevance)
-                    </span>
-                    <h3 className="font-bold text-base text-zinc-200 leading-snug">{comp.title}</h3>
-                    <span className="text-xs text-zinc-500 font-medium block mt-0.5">{comp.company}</span>
-                    <p className="text-xs text-zinc-400 mt-3">Timeline: {comp.timeline}</p>
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-6">
-                    <span className="text-xs font-bold text-emerald-400">{comp.prize_pool}</span>
-                    <a
-                      href={comp.apply_link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="px-3.5 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-lg text-xs flex items-center gap-1"
-                    >
-                      Quick Apply <ArrowRight className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
 
       {/* 5. PROFILE REGISTRATION */}
       {activePortalTab === 'profile' && (
@@ -799,6 +822,8 @@ export default function StudentPortal() {
                 {resumeName ? `Attached: ${resumeName}` : 'Select mock file upload'}
               </button>
             </div>
+
+
 
             <button
               type="submit"

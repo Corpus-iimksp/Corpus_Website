@@ -69,9 +69,11 @@ export interface SessionRequest {
   id: string;
   student_id: string;
   mentor_id: string;
-  status: 'pending' | 'approved' | 'rejected' | 'rescheduled';
+  status: 'pending_admin' | 'pending_mentor' | 'approved' | 'rejected' | 'rescheduled';
   preferred_time: string;
   notes: string;
+  competition_name: string;
+  proof_url: string;
   created_at: string;
 }
 
@@ -94,6 +96,248 @@ export interface WinningDeck {
   previewImage: string;
   downloadsCount: number;
 }
+
+export interface Framework {
+  id: string;
+  name: string;
+  subtitle: string;
+  front: string;
+  back: string;
+  gradient: string;
+}
+
+export interface BasicsTopic {
+  id: string;
+  title: string;
+  desc: string;
+  insights: string[];
+}
+
+export interface QuizQuestion {
+  q: string;
+  options: string[];
+  correctIndex: number;
+  feedback: string;
+}
+
+export interface Quiz {
+  id: string;
+  title: string;
+  questions: QuizQuestion[];
+}
+
+const DEFAULT_FRAMEWORKS: Framework[] = [
+  {
+    id: "fw-1",
+    name: "Profitability Framework",
+    subtitle: "Diagnose Profit Drops",
+    front: "Used to isolate drivers of declining profits by branching Profit into Revenue and Costs.",
+    back: "Profit = (Price x Quantity) - (Fixed Costs + Variable Costs)\n\nKey questions:\n1. Is it a revenue drop or cost rise?\n2. If revenue, is it a volume drop or price pressure?\n3. If cost, is fixed overhead rising or input materials?",
+    gradient: "from-indigo-600 to-purple-600"
+  },
+  {
+    id: "fw-2",
+    name: "Market Entry",
+    subtitle: "New Market Feasibility",
+    front: "Analyze if a company should enter a new geographic region or product space.",
+    back: "Four Core Pillars:\n1. Market attractiveness (size, growth, competitors)\n2. Financials (investment, break-even, margins)\n3. Capabilities (operations, supply, talent)\n4. Risk & Entry Mode (M&A, Joint Venture, Organic)",
+    gradient: "from-purple-600 to-indigo-600"
+  },
+  {
+    id: "fw-3",
+    name: "Growth Strategy",
+    subtitle: "Scale Revenues",
+    front: "Identify avenues for business expansion and revenue optimization.",
+    back: "Ansoff Matrix:\n1. Market Penetration (sell more existing products to existing users)\n2. Market Development (new users for existing products)\n3. Product Development (new products to existing users)\n4. Diversification (new products to new users)",
+    gradient: "from-indigo-600 to-sky-600"
+  },
+  {
+    id: "fw-4",
+    name: "Pricing Strategy",
+    subtitle: "Maximize Value Capture",
+    front: "Determine how to price a new product or optimize current prices.",
+    back: "Three Core Approaches:\n1. Cost-Based (cost + margin target)\n2. Competitor-Based (benchmarked to rivals)\n3. Value-Based (tied to customer willingness-to-pay & ROI)\n\nConsider segment bundles & elasticities.",
+    gradient: "from-sky-600 to-purple-600"
+  },
+  {
+    id: "fw-5",
+    name: "M&A Framework",
+    subtitle: "Evaluate Acquisitions",
+    front: "Determine if merging with or buying another business makes commercial sense.",
+    back: "Analysis Steps:\n1. Strategic fit (synergies, IP, market share)\n2. Valuation (financial multiples, cash flow)\n3. Post-merger integration costs & timeline\n4. Regulatory hurdle risks",
+    gradient: "from-purple-600 to-sky-600"
+  },
+  {
+    id: "fw-6",
+    name: "GTM Framework",
+    subtitle: "Go-To-Market Plan",
+    front: "Plan launch vectors to take a new product directly to market.",
+    back: "Five Action Pillars:\n1. Target Customer Segment (personas)\n2. Value Proposition (messaging)\n3. Channels (direct, retail, digital)\n4. Pricing Model & Promos\n5. KPIs (CAC, LTV, conversion rates)",
+    gradient: "from-sky-600 to-indigo-600"
+  }
+];
+
+const DEFAULT_BASICS_TOPICS: BasicsTopic[] = [
+  {
+    id: "topic-1",
+    title: "What is a Case Competition?",
+    desc: "A business case competition is a mock challenge where students formulate corporate solutions to complex problems under a tight deadline, pitching to panel judges.",
+    insights: ["Always start with a clear problem definition.", "Focus on financial viability and real-world execution."]
+  },
+  {
+    id: "topic-2",
+    title: "Competition Lifecycle",
+    desc: "Typical steps: Case Release -> 48-hour Prep -> Slide Deck upload -> Campus Heats -> Regional Semis -> National Grand Finale.",
+    insights: ["Dedicate the first 20% of your time to structuring, not drafting.", "Rehearse Q&A thoroughly."]
+  },
+  {
+    id: "topic-3",
+    title: "Team Formation",
+    desc: "Ideal team size is 3-4. Mix complementary skills: 1 Strategy Lead, 1 Financial Modeler, 1 GTM/Marketing Specialist, and 1 Visual Design master.",
+    insights: ["A cohesive team of different backgrounds performs 3x better.", "Assign roles early."]
+  },
+  {
+    id: "topic-4",
+    title: "Presentation Design",
+    desc: "Slide visuals dictate credibility. Use standard consulting palettes, executive summary banners on every slide, and 'So What?' message titles.",
+    insights: ["Limit text per slide; use structure grids.", "Ensure charts have clean sources and highlights."]
+  }
+];
+
+const DEFAULT_QUIZZES: Quiz[] = [
+  {
+    id: "quiz-1",
+    title: "Practice 1: Core Frameworks & MECE Structuring",
+    questions: [
+      {
+        q: "Which framework divides profit into price, quantity, fixed cost, and variable cost?",
+        options: ["Market Entry", "Profitability Framework", "Porter's Five Forces", "Growth Strategy (Ansoff)"],
+        correctIndex: 1,
+        feedback: "The Profitability Framework decomposes profits mathematically: Profit = (Price * Quantity) - (Fixed Costs + Variable Costs) to systematically isolate drivers."
+      },
+      {
+        q: "If a company wants to evaluate expanding its current product line into a completely new geography, which framework is most appropriate?",
+        options: ["Pricing Strategy", "Cost-Benefit Analysis", "Market Entry", "MECE Mutually Exclusive"],
+        correctIndex: 2,
+        feedback: "Market Entry is designed to evaluate entering new geography, product lines, or sectors across multiple operational and financial pillars."
+      },
+      {
+        q: "What does MECE stand for in consulting problem-solving?",
+        options: ["Mutually Exclusive, Collectively Exhaustive", "Most Effective, Cost Efficient", "Market Entry, Competitor Evaluation", "Macro Environment, Customer Experience"],
+        correctIndex: 0,
+        feedback: "MECE means categories should not overlap (mutually exclusive) and should cover all options (collectively exhaustive)."
+      },
+      {
+        q: "Under the Ansoff Matrix, introducing new products to existing markets is known as:",
+        options: ["Market Penetration", "Product Development", "Market Development", "Diversification"],
+        correctIndex: 1,
+        feedback: "Product Development involves offering new products to customers in existing target markets."
+      },
+      {
+        q: "Which pricing strategy benchmarks price primarily against competitors' prices?",
+        options: ["Value-Based Pricing", "Cost-Plus Pricing", "Competitor-Based Pricing", "Penetration Pricing"],
+        correctIndex: 2,
+        feedback: "Competitor-Based Pricing relies directly on prices set by other companies in the market."
+      },
+      {
+        q: "In Porter's Five Forces, what does a high barrier to entry signify?",
+        options: ["High threat of substitute products", "Low threat of new entrants", "High bargaining power of buyers", "Low industry rivalry"],
+        correctIndex: 1,
+        feedback: "High barriers to entry make it difficult for new competitors to enter the industry, resulting in a low threat of new entrants."
+      },
+      {
+        q: "What is a GTM strategy's primary focus?",
+        options: ["Finding internal corporate synergies", "Launching a new product/service to the market", "Reducing fixed manufacturing overheads", "Resolving legal compliance bottlenecks"],
+        correctIndex: 1,
+        feedback: "A Go-To-Market (GTM) strategy defines how a company launches and delivers its value proposition to target customers."
+      },
+      {
+        q: "In value-based pricing, what is price primarily benchmarked against?",
+        options: ["Total cost of production plus margin", "Competitors' prices", "Customer willingness-to-pay & perceived value", "Inflation rates"],
+        correctIndex: 2,
+        feedback: "Value-based pricing captures pricing power by benchmarking against the customer's perceived benefit and willingness-to-pay."
+      },
+      {
+        q: "Which framework evaluates M&A opportunities?",
+        options: ["GTM Framework", "M&A Framework", "Ansoff Matrix", "BCG Matrix"],
+        correctIndex: 1,
+        feedback: "The M&A Framework evaluates corporate acquisitions based on strategic fit, valuations, synergy capture, and integration hurdles."
+      },
+      {
+        q: "A profitability diagnostic shows that passenger counts rose by 5%, but profitability fell. What is the logical first driver to isolate?",
+        options: ["Fixed overhead costs", "Average yield per passenger vs fuel costs", "CEO compensation structure", "Global exchange rate fluctuations"],
+        correctIndex: 1,
+        feedback: "Since passenger volume rose but profits fell, revenue yield per passenger (pricing) or variable flight operating costs (fuel) must be isolated first."
+      }
+    ]
+  },
+  {
+    id: "quiz-2",
+    title: "Practice 2: Market Strategy & Industry Competitiveness",
+    questions: [
+      {
+        q: "Which BCG Matrix quadrant represents businesses with high market share in slow-growing industries?",
+        options: ["Stars", "Cash Cows", "Question Marks", "Dogs"],
+        correctIndex: 1,
+        feedback: "Cash Cows generate more cash than they consume, holding high share in mature markets."
+      },
+      {
+        q: "What is the main driver behind Cost-Plus Pricing?",
+        options: ["Competitor matching", "Production/operation costs plus a markup percentage", "Consumer survey data on pricing elasticity", "Brand prestige levels"],
+        correctIndex: 1,
+        feedback: "Cost-Plus pricing calculates price by adding a fixed profit margin markup to the calculated cost of production."
+      },
+      {
+        q: "Which framework helps companies evaluate the micro-environment of an industry's competitiveness?",
+        options: ["3 C's Model", "PESTEL Analysis", "Porter's Five Forces", "Value Chain"],
+        correctIndex: 2,
+        feedback: "Porter's Five Forces focuses on industry structure and rivalry dynamics, determining overall profit attractiveness."
+      },
+      {
+        q: "If a company wants to sell its current products to current customers more frequently, they are pursuing:",
+        options: ["Market Development", "Market Penetration", "Product Development", "Diversification"],
+        correctIndex: 1,
+        feedback: "Market Penetration seeks to capture more usage and frequency from existing customer segments with current products."
+      },
+      {
+        q: "In the 3 C's framework, what are the three pillars?",
+        options: ["Costs, Customers, Competitors", "Company, Customers, Competitors", "Company, Channels, Compliance", "Capital, Costs, Cashflow"],
+        correctIndex: 1,
+        feedback: "Kenichi Ohmae's 3 C's lists Company (internal skills), Customers (demographics & needs), and Competitors (rival strategies)."
+      },
+      {
+        q: "What does PESTEL stand for?",
+        options: ["Political, Economic, Social, Technological, Environmental, Legal", "Pricing, Elasticity, Sourcing, Taxes, Entry, Location", "Product, Promotion, Place, Price, Package, Position", "Profit, Equity, Sales, Turnover, Expenses, Liabilities"],
+        correctIndex: 0,
+        feedback: "PESTEL evaluates macro-environmental external drivers: Political, Economic, Social, Technological, Environmental, and Legal factors."
+      },
+      {
+        q: "What is a synergy in the context of an acquisition?",
+        options: ["The total debt inherited from the target firm", "Financial/operational value created when combined that exceeds sum of individual parts", "The regulatory approval process timeline", "The stock option dilution rate"],
+        correctIndex: 1,
+        feedback: "Synergies occur when '1 + 1 = 3', meaning cost savings or revenue cross-sell opportunities make the combined business more valuable than the sum of both separate entities."
+      },
+      {
+        q: "Under what scenario is a Joint Venture entry mode preferred over organic entry?",
+        options: ["When the company wants 100% control and ownership", "When local market knowledge and assets are critical but restricted", "When entering a market with no competitors", "When production costs are negligible"],
+        correctIndex: 1,
+        feedback: "Joint Ventures partner with local firms to leverage local assets, distribute risks, or comply with domestic foreign ownership regulations."
+      },
+      {
+        q: "In GTM, what is CAC?",
+        options: ["Capital Asset Cost", "Customer Acquisition Cost", "Corporate Affiliate Commission", "Customer Activity Count"],
+        correctIndex: 1,
+        feedback: "Customer Acquisition Cost (CAC) tracks total sales and marketing spend divided by the number of new customers acquired."
+      },
+      {
+        q: "MECE analysis requires that problem categories should be:",
+        options: ["Extremely complex", "Mutually exclusive and collectively exhaustive", "Cost-minimizing and revenue-maximizing", "Aligned with competitor branding"],
+        correctIndex: 1,
+        feedback: "MECE stands for Mutually Exclusive (no overlap) and Collectively Exhaustive (covers all issues, no gaps)."
+      }
+    ]
+  }
+];
 
 // Initial Seed Data
 const DEFAULT_COMPETITIONS: Competition[] = [
@@ -261,6 +505,107 @@ const useFallback = !SUPABASE_URL || SUPABASE_URL.includes('YOUR_SUPABASE') || !
 export const supabase = !useFallback ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 // LocalStorage Database Client Fallback
+// Combined User Profile structure representing the database row
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: 'student' | 'mentor' | 'admin';
+  college: string;
+  program?: string;
+  year?: string;
+  resume?: string;
+  linkedin?: string;
+  interests?: string[];
+  badges?: string[];
+  wins?: number;
+  shortlists?: number;
+  participations?: number;
+  batch?: string;
+  current_role?: string;
+  competitions_won?: string[];
+  expertise?: string[];
+  rating?: number;
+  profile_photo?: string;
+  available_days?: string[];
+  available_slots?: string[];
+  created_at?: string;
+}
+
+const DEFAULT_USERS: UserProfile[] = [
+  {
+    id: 'student-demo',
+    name: 'Aravind Swamy',
+    email: 'aravind.swamy.pgp26@iimkashipur.ac.in',
+    role: 'student',
+    college: 'IIM Kashipur',
+    program: 'PGP MBA',
+    year: '1st Year',
+    resume: 'aravind_resume_consulting.pdf',
+    linkedin: 'https://linkedin.com/in/aravind-swamy-iim',
+    interests: ['Consulting', 'Product', 'Marketing'],
+    badges: ['Case Champion', 'First Competition'],
+    wins: 1,
+    shortlists: 2,
+    participations: 4
+  },
+  {
+    id: 'mentor-1',
+    name: 'Abhishek Sen',
+    email: 'abhishek.sen.pgp25@iimkashipur.ac.in',
+    role: 'mentor',
+    college: 'IIM Kashipur',
+    batch: '2023-25',
+    current_role: 'Associate Consultant at Bain & Co.',
+    competitions_won: ['L\'Oréal Brandstorm National Winner', 'McKinsey Strategy Cup Runner-up'],
+    expertise: ['Consulting', 'Marketing', 'Presentation Design'],
+    rating: 4.9,
+    profile_photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
+    available_days: ['Monday', 'Wednesday', 'Saturday'],
+    available_slots: ['17:00 - 18:00', '18:30 - 19:30', '21:00 - 22:00']
+  },
+  {
+    id: 'mentor-2',
+    name: 'Priya Sharma',
+    email: 'priya.sharma.pgp25@iimkashipur.ac.in',
+    role: 'mentor',
+    college: 'IIM Kashipur',
+    batch: '2023-25',
+    current_role: 'Management Trainee at HUL',
+    competitions_won: ['HUL L.I.M.E. Season 16 National Champion', 'Colgate Transcend Winner'],
+    expertise: ['Marketing', 'GTM Framework', 'Growth Strategy'],
+    rating: 4.85,
+    profile_photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
+    available_days: ['Tuesday', 'Thursday', 'Sunday'],
+    available_slots: ['16:00 - 17:00', '19:00 - 20:00', '20:30 - 21:30']
+  },
+  {
+    id: 'mentor-3',
+    name: 'Rohan Mehta',
+    email: 'rohan.mehta.pgp24@iimkashipur.ac.in',
+    role: 'mentor',
+    college: 'IIM Kashipur',
+    batch: '2022-24',
+    current_role: 'Product Manager at Microsoft',
+    competitions_won: ['Tata Imagination Challenge National Winner', 'Uber Elevate Winner'],
+    expertise: ['Product', 'Analytics', 'Pricing Strategy'],
+    rating: 4.95,
+    profile_photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200',
+    available_days: ['Friday', 'Saturday'],
+    available_slots: ['18:00 - 19:00', '19:30 - 20:30', '21:00 - 22:00']
+  },
+  {
+    id: 'admin-1',
+    name: 'Admin',
+    email: 'roushan.mbaa25133@iimkashipur.ac.in',
+    role: 'admin',
+    college: 'IIM Kashipur',
+    current_role: 'Student Admin Panel',
+    profile_photo: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200'
+  }
+];
+
+// LocalStorage Database Client Fallback
 class LocalDb {
   private getStorage<T>(key: string, defaultValue: T): T {
     if (typeof window === 'undefined') return defaultValue;
@@ -273,48 +618,77 @@ class LocalDb {
     localStorage.setItem(`corpus_${key}`, JSON.stringify(value));
   }
 
-  // --- Students ---
+  // --- Unified Users (Students + Mentors + Admins) ---
+  getUsers(): UserProfile[] {
+    return this.getStorage<UserProfile[]>('users', DEFAULT_USERS);
+  }
+
+  getUser(id: string): UserProfile | null {
+    const users = this.getUsers();
+    return users.find(u => u.id === id) || null;
+  }
+
+  getUserByEmail(email: string): UserProfile | null {
+    const users = this.getUsers();
+    return users.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
+  }
+
+  upsertUser(user: UserProfile): UserProfile {
+    const users = this.getUsers();
+    const idx = users.findIndex(u => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase());
+    if (idx >= 0) {
+      users[idx] = { ...users[idx], ...user };
+    } else {
+      users.push(user);
+    }
+    this.setStorage('users', users);
+    return user;
+  }
+
+  // --- Students (Compatibility wrappers for existing screens) ---
   getStudents(): Student[] {
-    return this.getStorage<Student[]>('students', []);
+    // Map profiles containing student data
+    return this.getUsers() as unknown as Student[];
   }
 
   getStudent(id: string): Student | null {
-    const students = this.getStudents();
-    return students.find(s => s.id === id) || null;
+    return this.getUser(id) as unknown as Student;
   }
 
   upsertStudent(student: Student): Student {
-    const students = this.getStudents();
-    const idx = students.findIndex(s => s.id === student.id || s.email === student.email);
-    if (idx >= 0) {
-      students[idx] = { ...students[idx], ...student };
-    } else {
-      students.push(student);
-    }
-    this.setStorage('students', students);
+    const profile: UserProfile = {
+      ...(this.getUser(student.id) || { role: 'student' }),
+      ...student
+    } as UserProfile;
+    this.upsertUser(profile);
     return student;
   }
 
-  // --- Mentors ---
+  // --- Mentors (Compatibility wrappers) ---
   getMentors(): Mentor[] {
-    return this.getStorage<Mentor[]>('mentors', DEFAULT_MENTORS);
+    return this.getUsers().filter(u => u.role === 'mentor') as unknown as Mentor[];
   }
 
   getMentor(id: string): Mentor | null {
-    const mentors = this.getMentors();
-    return mentors.find(m => m.id === id) || null;
+    const user = this.getUser(id);
+    return user && user.role === 'mentor' ? (user as unknown as Mentor) : null;
   }
 
   upsertMentor(mentor: Mentor): Mentor {
-    const mentors = this.getMentors();
-    const idx = mentors.findIndex(m => m.id === mentor.id || m.email === mentor.email);
-    if (idx >= 0) {
-      mentors[idx] = { ...mentors[idx], ...mentor };
-    } else {
-      mentors.push(mentor);
-    }
-    this.setStorage('mentors', mentors);
+    const profile: UserProfile = {
+      ...(this.getUser(mentor.id) || { role: 'mentor' }),
+      ...mentor,
+      role: 'mentor'
+    } as UserProfile;
+    this.upsertUser(profile);
     return mentor;
+  }
+
+  deleteMentor(id: string): boolean {
+    const users = this.getUsers();
+    const filtered = users.filter(u => !(u.id === id && u.role === 'mentor'));
+    this.setStorage('users', filtered);
+    return filtered.length !== users.length;
   }
 
   // --- Mentor Applications ---
@@ -342,24 +716,29 @@ class LocalDb {
       applications[idx].status = status;
       this.setStorage('mentor_applications', applications);
 
-      // If approved, add application to Mentors table
+      // If approved, update user role to 'mentor' in users table
       if (status === 'approved') {
         const app = applications[idx];
-        const newMentor: Mentor = {
-          id: `mentor-${Date.now()}`,
-          name: app.applicant_name,
-          email: app.email,
-          college: app.college,
+        const existingUser = this.getUserByEmail(app.email);
+        
+        const profile: UserProfile = {
+          ...(existingUser || {
+            id: `user-${Date.now()}`,
+            name: app.applicant_name,
+            email: app.email,
+            college: app.college,
+          }),
+          role: 'mentor',
           batch: app.batch,
           current_role: app.current_role,
           competitions_won: app.competitions_won,
           expertise: app.expertise_areas,
-          rating: 5.0, // Initial rating
+          rating: 5.0,
           profile_photo: app.profile_photo || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200',
-          available_days: ['Monday', 'Friday'], // default
-          available_slots: ['18:00 - 19:00', '20:00 - 21:00'] // default
+          available_days: ['Monday', 'Friday'],
+          available_slots: ['18:00 - 19:00', '20:00 - 21:00']
         };
-        this.upsertMentor(newMentor);
+        this.upsertUser(profile);
       }
       return applications[idx];
     }
@@ -390,7 +769,7 @@ class LocalDb {
     return filtered.length !== competitions.length;
   }
 
-  // --- Session Requests ---
+  // --- Session Bookings ---
   getSessionRequests(): SessionRequest[] {
     return this.getStorage<SessionRequest[]>('session_requests', []);
   }
@@ -400,7 +779,7 @@ class LocalDb {
     const newReq: SessionRequest = {
       ...req,
       id: `req-${Date.now()}`,
-      status: 'pending',
+      status: 'pending_admin',
       created_at: new Date().toISOString()
     };
     requests.push(newReq);
@@ -408,7 +787,7 @@ class LocalDb {
     return newReq;
   }
 
-  updateSessionRequestStatus(id: string, status: 'approved' | 'rejected' | 'rescheduled', preferred_time?: string): SessionRequest | null {
+  updateSessionRequestStatus(id: string, status: 'pending_admin' | 'pending_mentor' | 'approved' | 'rejected' | 'rescheduled', preferred_time?: string): SessionRequest | null {
     const requests = this.getSessionRequests();
     const idx = requests.findIndex(r => r.id === id);
     if (idx >= 0) {
@@ -452,6 +831,136 @@ class LocalDb {
   // --- Decks ---
   getWinningDecks(): WinningDeck[] {
     return this.getStorage<WinningDeck[]>('winning_decks', DEFAULT_DECKS);
+  }
+
+  upsertWinningDeck(deck: WinningDeck): WinningDeck {
+    const decks = this.getWinningDecks();
+    const idx = decks.findIndex(d => d.id === deck.id);
+    if (idx >= 0) {
+      decks[idx] = deck;
+    } else {
+      decks.push(deck);
+    }
+    this.setStorage('winning_decks', decks);
+    return deck;
+  }
+
+  deleteWinningDeck(id: string): boolean {
+    const decks = this.getWinningDecks();
+    const filtered = decks.filter(d => d.id !== id);
+    this.setStorage('winning_decks', filtered);
+    return filtered.length !== decks.length;
+  }
+
+  // --- Interactive Frameworks ---
+  getFrameworks(): Framework[] {
+    return this.getStorage<Framework[]>('learning_frameworks', DEFAULT_FRAMEWORKS);
+  }
+
+  upsertFramework(fw: Framework): Framework {
+    const list = this.getFrameworks();
+    const idx = list.findIndex(f => f.id === fw.id);
+    if (idx >= 0) {
+      list[idx] = fw;
+    } else {
+      list.push(fw);
+    }
+    this.setStorage('learning_frameworks', list);
+    return fw;
+  }
+
+  deleteFramework(id: string): boolean {
+    const list = this.getFrameworks();
+    const filtered = list.filter(f => f.id !== id);
+    this.setStorage('learning_frameworks', filtered);
+    return filtered.length !== list.length;
+  }
+
+  // --- Case Basics 101 Topics ---
+  getBasicsTopics(): BasicsTopic[] {
+    return this.getStorage<BasicsTopic[]>('learning_basics', DEFAULT_BASICS_TOPICS);
+  }
+
+  upsertBasicsTopic(topic: BasicsTopic): BasicsTopic {
+    const list = this.getBasicsTopics();
+    const idx = list.findIndex(t => t.id === topic.id);
+    if (idx >= 0) {
+      list[idx] = topic;
+    } else {
+      list.push(topic);
+    }
+    this.setStorage('learning_basics', list);
+    return topic;
+  }
+
+  deleteBasicsTopic(id: string): boolean {
+    const list = this.getBasicsTopics();
+    const filtered = list.filter(t => t.id !== id);
+    this.setStorage('learning_basics', filtered);
+    return filtered.length !== list.length;
+  }
+
+  // --- Mock Case Practice Quizzes ---
+  getQuizzes(): Quiz[] {
+    return this.getStorage<Quiz[]>('learning_quizzes', DEFAULT_QUIZZES);
+  }
+
+  upsertQuiz(quiz: Quiz): Quiz {
+    const list = this.getQuizzes();
+    const idx = list.findIndex(q => q.id === quiz.id);
+    if (idx >= 0) {
+      list[idx] = quiz;
+    } else {
+      list.push(quiz);
+    }
+    this.setStorage('learning_quizzes', list);
+    return quiz;
+  }
+
+  deleteQuiz(id: string): boolean {
+    const list = this.getQuizzes();
+    const filtered = list.filter(q => q.id !== id);
+    this.setStorage('learning_quizzes', filtered);
+    return filtered.length !== list.length;
+  }
+
+  // --- Admin Access Control ---
+  grantAdmin(email: string): UserProfile {
+    const emailLower = email.trim().toLowerCase();
+    const existing = this.getUserByEmail(emailLower);
+    if (existing) {
+      existing.role = 'admin';
+      return this.upsertUser(existing);
+    } else {
+      const name = emailLower.split('@')[0].split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+      const newProfile: UserProfile = {
+        id: `user-${Date.now()}`,
+        name,
+        email: emailLower,
+        role: 'admin',
+        college: 'IIM Kashipur',
+        badges: ['First Step'],
+        wins: 0,
+        shortlists: 0,
+        participations: 0,
+        interests: [],
+        competitions_won: [],
+        expertise: [],
+        available_days: [],
+        available_slots: []
+      };
+      return this.upsertUser(newProfile);
+    }
+  }
+
+  revokeAdmin(email: string): UserProfile | null {
+    const emailLower = email.trim().toLowerCase();
+    const existing = this.getUserByEmail(emailLower);
+    if (existing) {
+      existing.role = 'student';
+      return this.upsertUser(existing);
+    }
+    return null;
   }
 }
 

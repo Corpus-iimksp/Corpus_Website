@@ -9,8 +9,6 @@ import {
   List, 
   LayoutGrid, 
   Star, 
-  Bell, 
-  Share2, 
   ExternalLink, 
   ChevronLeft, 
   ChevronRight, 
@@ -73,29 +71,7 @@ export default function Dashboard() {
 
   const categories = ['All', 'Consulting', 'Marketing', 'Product', 'Analytics', 'Finance', 'Operations', 'HR'];
 
-  // Google Calendar Export Mock
-  const exportToCalendar = (comp: Competition) => {
-    addSystemNotification({
-      id: `gcal-${Date.now()}`,
-      title: '📅 Exported to Google Calendar',
-      message: `Successfully sync'ed "${comp.title}" deadline (${comp.deadline}) to your google calendar account.`,
-      type: 'system',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
-    alert(`Success: "${comp.title}" exported to Google Calendar simulation!`);
-  };
 
-  // Reminder Mock
-  const setReminder = (comp: Competition) => {
-    addSystemNotification({
-      id: `remind-${Date.now()}`,
-      title: '⏰ Reminder Notification Set',
-      message: `You will be alerted 24 hours before ${comp.title}'s deadline (${comp.deadline}).`,
-      type: 'alert',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
-    alert(`Reminder configured for "${comp.title}"! We will email alert you 24 hours prior.`);
-  };
 
   // Calendar builder helper (July 2026)
   const getDaysInMonth = (year: number, month: number) => {
@@ -328,13 +304,7 @@ export default function Dashboard() {
                             >
                               <Star className="w-3.5 h-3.5 fill-current" />
                             </button>
-                            <button
-                              onClick={() => setReminder(comp)}
-                              className="p-1.5 rounded-lg bg-zinc-900 border border-white/5 text-zinc-500 hover:text-zinc-300"
-                              title="Set Notification"
-                            >
-                              <Bell className="w-3.5 h-3.5" />
-                            </button>
+
                             <a
                               href={comp.apply_link}
                               target="_blank"
@@ -399,27 +369,14 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-4" onClick={e => e.stopPropagation()}>
-                    <button
-                      onClick={() => exportToCalendar(comp)}
-                      className="flex-1 text-center py-2 rounded-lg text-[10px] font-bold bg-zinc-900 border border-white/5 text-zinc-300 hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Share2 className="w-3.5 h-3.5" /> GCal Export
-                    </button>
-                    <button
-                      onClick={() => setReminder(comp)}
-                      className="p-2 rounded-lg bg-zinc-900 border border-white/5 text-zinc-400 hover:text-zinc-200"
-                      title="Set Alert Reminder"
-                    >
-                      <Bell className="w-3.5 h-3.5" />
-                    </button>
+                  <div className="flex items-center mt-4" onClick={e => e.stopPropagation()}>
                     <a
                       href={comp.apply_link}
                       target="_blank"
                       rel="noreferrer"
-                      className="p-2 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 shadow-sm"
+                      className="w-full text-center py-2 rounded-lg text-[10px] font-bold bg-indigo-600/95 hover:bg-indigo-500 text-white shadow-sm transition-colors flex items-center justify-center gap-1.5"
                     >
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      Register Now <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                   </div>
                 </div>

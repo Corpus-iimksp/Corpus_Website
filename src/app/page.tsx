@@ -16,7 +16,8 @@ import {
   FileCheck,
   CheckCircle,
   HelpCircle,
-  MessageSquare
+  MessageSquare,
+  Upload
 } from 'lucide-react';
 
 export default function Home() {
@@ -24,6 +25,8 @@ export default function Home() {
   const [selectedMentor, setSelectedMentor] = useState<any | null>(null);
   const [bookingTime, setBookingTime] = useState('');
   const [bookingNotes, setBookingNotes] = useState('');
+  const [bookingCompName, setBookingCompName] = useState('');
+  const [bookingProofName, setBookingProofName] = useState('');
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -46,14 +49,20 @@ export default function Home() {
   const handleBooking = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMentor) return;
+    if (!bookingCompName || !bookingProofName) {
+      alert("Please fill in Case Competition Name and upload Round 1 Proof document.");
+      return;
+    }
     
-    bookSession(selectedMentor.id, bookingTime, bookingNotes);
+    bookSession(selectedMentor.id, bookingTime, bookingNotes, bookingCompName, bookingProofName);
     setBookingSuccess(true);
     setTimeout(() => {
       setSelectedMentor(null);
       setBookingSuccess(false);
       setBookingTime('');
       setBookingNotes('');
+      setBookingCompName('');
+      setBookingProofName('');
     }, 2000);
   };
 
@@ -80,7 +89,7 @@ export default function Home() {
           </h1>
 
           <p className="text-base sm:text-lg text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            CORPUS is your ultimate preparation cockpit. Discover upcoming case challenges, study structured winning frameworks, practice mock scenarios, and get 1:1 feedback from verified champions.
+            CORPUS is your ultimate preparation platform. Discover upcoming case challenges, study structured winning frameworks, and get 1:1 mentoring from verified champions.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -467,6 +476,36 @@ export default function Home() {
                       ))
                     )}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Case Competition Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={bookingCompName}
+                    onChange={(e) => setBookingCompName(e.target.value)}
+                    placeholder="E.g., L'Oréal Brandstorm 2026"
+                    className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2.5 text-xs text-zinc-200 focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Upload Proof of Clearing Round 1</label>
+                  <div className="border border-dashed border-white/10 rounded-xl p-4 text-center bg-zinc-900/30">
+                    <Upload className="w-5 h-5 text-zinc-500 mx-auto mb-1.5" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const mockFile = `${currentStudent?.name?.toLowerCase().replace(/\s+/g, '_') || 'student'}_round1_proof.pdf`;
+                        setBookingProofName(mockFile);
+                        alert(`Document uploaded: ${mockFile}`);
+                      }}
+                      className="text-[10px] font-bold text-indigo-400 hover:underline cursor-pointer"
+                    >
+                      {bookingProofName ? `Attached: ${bookingProofName}` : 'Upload Round 1 Clearance Verification File'}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
