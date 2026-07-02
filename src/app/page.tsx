@@ -35,10 +35,10 @@ export default function Home() {
   }, []);
 
   const stats = [
-    { label: 'Live Opportunities', val: '50+' },
-    { label: 'Winner Mentors', val: '15+' },
-    { label: 'Total Prize Pools', val: '₹50L+' },
-    { label: 'Mock Cases Solved', val: '1,200+' }
+    { label: 'Live Opportunities', val: '10' },
+    { label: 'Mentors Available', val: '15' },
+    { label: 'Total Student Registered', val: '100' },
+    { label: 'National Winners', val: '3' }
   ];
 
   const testimonials = [
@@ -77,34 +77,33 @@ export default function Home() {
       <section className="relative pt-20 pb-16 px-4 max-w-7xl mx-auto sm:px-6 lg:px-8 text-center overflow-hidden">
         <div className="max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-xs font-semibold mb-6 animate-pulse">
-            <Sparkles className="w-3.5 h-3.5" />
-            Built exclusively for IIM Kashipur students
+            Built by IIM Kashipur students, for IIM Kashipur students
           </div>
           
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight mb-6 leading-tight">
-            Master Case Competitions <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-sky-400">
-              Like a Consultant
+          <h1 className="text-4xl sm:text-5xl lg:text-5xl font-extrabold tracking-tight mb-6 leading-tight">
+            IIM Kashipur <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-white-400 to-green-300">
+              Case Prep & Mentorship Platform
             </span>
           </h1>
 
           <p className="text-base sm:text-lg text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            CORPUS is your ultimate preparation platform. Discover upcoming case challenges, study structured winning frameworks, and get 1:1 mentoring from verified champions.
+            Discover live case competitions, master consulting frameworks, access winning resources, and connect with experienced mentors - all on one platform built exclusively for the IIM Kashipur community.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/dashboard"
-              className="glow-btn neon-gradient text-white px-8 py-3.5 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 hover:opacity-90 shadow-lg shadow-indigo-500/20 w-full sm:w-auto justify-center"
+              className="glow-btn orange text-white px-8 py-3.5 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 hover:opacity-90 shadow-lg shadow-blue-500/20 w-full sm:w-auto justify-center"
             >
               Explore Competitions
               <ArrowRight className="w-5 h-5" />
             </Link>
             <a
               href="#mentors-section"
-              className="glass-card text-zinc-300 px-8 py-3.5 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 hover:text-white border border-white/10 hover:bg-white/5 w-full sm:w-auto justify-center"
+              className="glow-btn orange text-white px-8 py-3.5 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 hover:opacity-90 shadow-lg shadow-blue-500/20 w-full sm:w-auto justify-center"
             >
-              Book a Mentor
+              Book a Mentor  
             </a>
           </div>
         </div>
@@ -115,7 +114,7 @@ export default function Home() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 bg-zinc-950/40 border border-white/5 rounded-2xl p-6 backdrop-blur-md">
           {stats.map((s, idx) => (
             <div key={idx} className="text-center p-4">
-              <span className="block text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
+              <span className="block text-3xl sm:text-4xl font-extrabold text-blue-300 tracking-tight">
                 {s.val}
               </span>
               <span className="text-xs sm:text-sm text-zinc-500 font-medium uppercase tracking-wider block mt-1">
