@@ -70,10 +70,10 @@ CREATE TABLE IF NOT EXISTS public.winning_decks (
   title TEXT NOT NULL,
   competition TEXT NOT NULL,
   year TEXT NOT NULL,
-  teamName TEXT NOT NULL,
+  teamname TEXT NOT NULL,
   tags TEXT[],
-  fileUrl TEXT NOT NULL,
-  previewImage TEXT
+  fileurl TEXT NOT NULL,
+  previewimage TEXT
 );
 
 -- 6. Create Frameworks Table

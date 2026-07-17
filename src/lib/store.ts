@@ -369,7 +369,16 @@ export const useStore = create<AppState>((set, get) => {
           const liveMentors = (mentorRes.data as unknown as Mentor[]) || [];
           const liveBookings = bookingRes.data || [];
           const liveMeetings = meetingRes.data || [];
-          const liveDecks = deckRes.data || [];
+          const liveDecks = (deckRes.data || []).map((deck: any) => ({
+            id: deck.id,
+            title: deck.title,
+            competition: deck.competition,
+            year: deck.year,
+            tags: deck.tags,
+            teamName: deck.teamname !== undefined ? deck.teamname : deck.teamName,
+            fileUrl: deck.fileurl !== undefined ? deck.fileurl : deck.fileUrl,
+            previewImage: deck.previewimage !== undefined ? deck.previewimage : deck.previewImage
+          }));
           const liveStudents = (studentRes.data as unknown as Student[]) || [];
           const liveFrameworks = fwRes.data || [];
           const liveQuizzes = quizRes.data || [];
@@ -832,7 +841,17 @@ export const useStore = create<AppState>((set, get) => {
     addWinningDeck: async (deck) => {
       if (supabase) {
         try {
-          const { error } = await supabase.from('winning_decks').insert(deck);
+          const dbDeck = {
+            id: deck.id,
+            title: deck.title,
+            competition: deck.competition,
+            year: deck.year,
+            tags: deck.tags,
+            teamname: deck.teamName,
+            fileurl: deck.fileUrl,
+            previewimage: deck.previewImage
+          };
+          const { error } = await supabase.from('winning_decks').insert(dbDeck);
           if (error) {
             console.error("Supabase addWinningDeck failed:", error);
             alert(`Failed to add winning deck: ${error.message}`);
@@ -857,7 +876,17 @@ export const useStore = create<AppState>((set, get) => {
     updateWinningDeck: async (deck) => {
       if (supabase) {
         try {
-          const { error } = await supabase.from('winning_decks').update(deck).eq('id', deck.id);
+          const dbDeck = {
+            id: deck.id,
+            title: deck.title,
+            competition: deck.competition,
+            year: deck.year,
+            tags: deck.tags,
+            teamname: deck.teamName,
+            fileurl: deck.fileUrl,
+            previewimage: deck.previewImage
+          };
+          const { error } = await supabase.from('winning_decks').update(dbDeck).eq('id', deck.id);
           if (error) {
             console.error("Supabase updateWinningDeck failed:", error);
             alert(`Failed to update winning deck: ${error.message}`);

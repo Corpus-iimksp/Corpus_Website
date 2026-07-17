@@ -190,30 +190,30 @@ const DEFAULT_DECKS = [
     title: 'L\'Oréal Brandstorm 2024 - Paris Finalist Deck',
     competition: 'L\'Oréal Brandstorm',
     year: '2024',
-    teamName: 'Team Mavericks',
+    teamname: 'Team Mavericks',
     tags: ['Marketing', 'GTM', 'Sustainability'],
-    fileUrl: '#',
-    previewImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=300'
+    fileurl: '#',
+    previewimage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=300'
   },
   {
     id: 'deck-2',
     title: 'McKinsey Strategy Cup - Winning Solution',
     competition: 'McKinsey Strategy Cup',
     year: '2025',
-    teamName: 'The Strategy Hub',
+    teamname: 'The Strategy Hub',
     tags: ['Consulting', 'Growth Strategy', 'M&A'],
-    fileUrl: '#',
-    previewImage: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&q=80&w=300'
+    fileurl: '#',
+    previewimage: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&q=80&w=300'
   },
   {
     id: 'deck-3',
     title: 'Tata Imagination Challenge - National Winner PPT',
     competition: 'Tata Imagination Challenge',
     year: '2024',
-    teamName: 'Genesis',
+    teamname: 'Genesis',
     tags: ['Product Launch', 'Pricing Strategy', 'Operations'],
-    fileUrl: '#',
-    previewImage: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&q=80&w=300'
+    fileurl: '#',
+    previewimage: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&q=80&w=300'
   }
 ];
 
