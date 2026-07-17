@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { db, WinningDeck } from '@/lib/db';
+import { WinningDeck } from '@/lib/db';
 import { 
   BookOpen, 
   HelpCircle, 
@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export default function LearningHub() {
-  const { addSystemNotification, winningDecks, frameworks, quizzes } = useStore();
+  const { addSystemNotification, winningDecks, frameworks, quizzes, updateWinningDeck } = useStore();
   const [activeTab, setActiveTab] = useState<'frameworks' | 'decks' | 'practice'>('frameworks');
   
   // Practice Quiz States
@@ -29,26 +29,24 @@ export default function LearningHub() {
   const [practiceScore, setPracticeScore] = useState<number | null>(null);
   const [practiceCompleted, setPracticeCompleted] = useState<boolean>(false);
 
-  // Deck downloads mock
-  const [downloadCounts, setDownloadCounts] = useState<Record<string, number>>({
-    'deck-1': 142,
-    'deck-2': 98,
-    'deck-3': 215
-  });
-
-  const handleDownload = (deckId: string, title: string) => {
-    setDownloadCounts(prev => ({
-      ...prev,
-      [deckId]: prev[deckId] + 1
-    }));
+  const handleDownload = async (deck: WinningDeck) => {
+    const updatedDeck = {
+      ...deck,
+      downloadsCount: (deck.downloadsCount || 0) + 1
+    };
+    try {
+      await updateWinningDeck(updatedDeck);
+    } catch (e) {
+      console.error("Failed to update download count in Supabase:", e);
+    }
     addSystemNotification({
       id: `download-${Date.now()}`,
       title: '📥 Deck Downloaded',
-      message: `Successfully downloaded template package for "${title}".`,
+      message: `Successfully downloaded template package for "${deck.title}".`,
       type: 'system',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
-    alert(`Downloading PPT Template: "${title}" has started! Check your downloads.`);
+    alert(`Downloading PPT Template: "${deck.title}" has started! Check your downloads.`);
   };
 
   return (
@@ -201,11 +199,11 @@ export default function LearningHub() {
 
               <div className="p-5 border-t border-white/5 bg-zinc-950/40 flex items-center justify-between">
                 <span className="text-xs text-zinc-500 font-semibold">
-                  {downloadCounts[deck.id]} downloads
+                  {deck.downloadsCount || 0} downloads
                 </span>
                 
                 <button
-                  onClick={() => handleDownload(deck.id, deck.title)}
+                  onClick={() => handleDownload(deck)}
                   className="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-500 hover:bg-indigo-600 text-white flex items-center gap-1 transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" /> Download PPT

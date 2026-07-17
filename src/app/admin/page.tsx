@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
-import { db, Competition, MentorApplication } from '@/lib/db';
+import { Competition, MentorApplication } from '@/lib/db';
 import { 
   Users, 
   UserCheck, 
@@ -397,23 +397,44 @@ export default function AdminDashboard() {
     clearQuestionBuilder();
   };
 
-  // Charts Mock Data
-  const monthlyGrowthData = [
-    { name: 'Jan', students: 120, sessions: 12 },
-    { name: 'Feb', students: 180, sessions: 25 },
-    { name: 'Mar', students: 310, sessions: 42 },
-    { name: 'Apr', students: 480, sessions: 65 },
-    { name: 'May', students: 650, sessions: 98 },
-    { name: 'Jun', students: 820, sessions: 140 }
-  ];
+  // Charts Data from Supabase
+  const monthlyGrowthData = (() => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dataMap: Record<string, { students: number; sessions: number }> = {};
+    months.forEach(m => {
+      dataMap[m] = { students: 0, sessions: 0 };
+    });
+
+    (students || []).forEach(s => {
+      if (s.created_at) {
+        const date = new Date(s.created_at);
+        const monthName = months[date.getMonth()];
+        dataMap[monthName].students += 1;
+      }
+    });
+
+    (bookings || []).forEach(b => {
+      if (b.created_at) {
+        const date = new Date(b.created_at);
+        const monthName = months[date.getMonth()];
+        dataMap[monthName].sessions += 1;
+      }
+    });
+
+    return months.map(name => ({
+      name,
+      students: dataMap[name].students,
+      sessions: dataMap[name].sessions
+    }));
+  })();
 
   const categoryDistributionData = [
-    { category: 'Consulting', count: competitions.filter(c => c.category === 'Consulting').length || 2 },
-    { category: 'Marketing', count: competitions.filter(c => c.category === 'Marketing').length || 2 },
-    { category: 'Product', count: competitions.filter(c => c.category === 'Product').length || 1 },
-    { category: 'Analytics', count: competitions.filter(c => c.category === 'Analytics').length || 1 },
-    { category: 'Finance', count: competitions.filter(c => c.category === 'Finance').length || 0 },
-    { category: 'Operations', count: competitions.filter(c => c.category === 'Operations').length || 1 }
+    { category: 'Consulting', count: competitions.filter(c => c.category === 'Consulting').length },
+    { category: 'Marketing', count: competitions.filter(c => c.category === 'Marketing').length },
+    { category: 'Product', count: competitions.filter(c => c.category === 'Product').length },
+    { category: 'Analytics', count: competitions.filter(c => c.category === 'Analytics').length },
+    { category: 'Finance', count: competitions.filter(c => c.category === 'Finance').length },
+    { category: 'Operations', count: competitions.filter(c => c.category === 'Operations').length }
   ];
 
   const studentsList = students;
@@ -548,38 +569,39 @@ export default function AdminDashboard() {
         <div className="space-y-8">
           
           {/* Quick Metrics Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="glass-panel p-5 rounded-2xl border-white/5">
               <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Total Students</span>
-              <span className="text-3xl font-black text-amber-400 mt-1 block">{studentsList.length || 1}</span>
+              <span className="text-3xl font-black text-amber-400 mt-1 block">{studentsList.length}</span>
             </div>
             <div className="glass-panel p-5 rounded-2xl border-white/5">
               <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Active Mentors</span>
               <span className="text-3xl font-black text-amber-400 mt-1 block">{mentors.length}</span>
             </div>
-            {/* Quick Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-              <div className="glass-panel p-5 rounded-2xl border-white/5">
-                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Opportunities</span>
-                <span className="text-3xl font-black text-amber-400 mt-1 block">{competitions.length}</span>
-              </div>
-              <div className="glass-panel p-5 rounded-2xl border-white/5">
-                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Bookings Met</span>
-                <span className="text-3xl font-black text-amber-400 mt-1 block">{bookings.length}</span>
-              </div>
+          </div>
 
-              <div className="glass-panel p-5 rounded-2xl border-white/5">
-                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Slide Decks</span>
-                <span className="text-3xl font-black text-indigo-400 mt-1 block">{winningDecks.length}</span>
-              </div>
-              <div className="glass-panel p-5 rounded-2xl border-white/5">
-                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Frameworks</span>
-                <span className="text-3xl font-black text-indigo-400 mt-1 block">{frameworks.length}</span>
-              </div>
-              <div className="glass-panel p-5 rounded-2xl border-white/5">
-                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Practice Quizzes</span>
-                <span className="text-3xl font-black text-indigo-400 mt-1 block">{quizzes.length}</span>
-              </div>
+          {/* Secondary Quick Metrics */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="glass-panel p-5 rounded-2xl border-white/5">
+              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Opportunities</span>
+              <span className="text-3xl font-black text-amber-400 mt-1 block">{competitions.length}</span>
+            </div>
+            <div className="glass-panel p-5 rounded-2xl border-white/5">
+              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Bookings Met</span>
+              <span className="text-3xl font-black text-amber-400 mt-1 block">{bookings.length}</span>
+            </div>
+
+            <div className="glass-panel p-5 rounded-2xl border-white/5">
+              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Slide Decks</span>
+              <span className="text-3xl font-black text-indigo-400 mt-1 block">{winningDecks.length}</span>
+            </div>
+            <div className="glass-panel p-5 rounded-2xl border-white/5">
+              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Frameworks</span>
+              <span className="text-3xl font-black text-indigo-400 mt-1 block">{frameworks.length}</span>
+            </div>
+            <div className="glass-panel p-5 rounded-2xl border-white/5">
+              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Practice Quizzes</span>
+              <span className="text-3xl font-black text-indigo-400 mt-1 block">{quizzes.length}</span>
             </div>
           </div>
 
@@ -1193,8 +1215,8 @@ export default function AdminDashboard() {
             ) : (
               <div className="grid grid-cols-1 gap-4">
                 {bookings.filter(b => b.status === 'pending_admin').map((booking) => {
-                  const studentObj = db.getStudent(booking.student_id);
-                  const mentorObj = db.getMentor(booking.mentor_id);
+                  const studentObj = students.find(s => s.id === booking.student_id);
+                  const mentorObj = mentors.find(m => m.id === booking.mentor_id);
                   
                   return (
                     <div key={booking.id} className="glass-card p-5 rounded-2xl border border-white/5 relative text-xs">
@@ -1282,8 +1304,8 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {bookings.map((booking) => {
-                      const studentObj = db.getStudent(booking.student_id);
-                      const mentorObj = db.getMentor(booking.mentor_id);
+                      const studentObj = students.find(s => s.id === booking.student_id);
+                      const mentorObj = mentors.find(m => m.id === booking.mentor_id);
                       
                       return (
                         <tr key={booking.id} className="hover:bg-zinc-900/10">

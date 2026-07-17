@@ -179,37 +179,6 @@ export const useStore = create<AppState>((set, get) => {
         }
       }
 
-      // Fallback if Supabase not connected or failed
-      if (!profile) {
-        const existing = db.getUserByEmail(emailLower);
-        if (existing) {
-          profile = existing;
-          const expectedRole = isSystemAdmin ? 'admin' : (profile.role === 'admin' ? 'student' : profile.role);
-          if (profile.role !== expectedRole) {
-            profile.role = expectedRole;
-            db.upsertUser(profile);
-          }
-        } else {
-          const name = emailLower.split('@')[0].split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
-          const newProfile: UserProfile = {
-            id: `user-${Date.now()}`,
-            name,
-            email: emailLower,
-            role: defaultRole,
-            college: 'IIM Kashipur',
-            badges: ['First Step'],
-            wins: 0,
-            shortlists: 0,
-            participations: 0,
-            interests: [],
-            competitions_won: [],
-            expertise: [],
-            available_days: [],
-            available_slots: []
-          };
-          profile = db.upsertUser(newProfile);
-        }
-      }
 
       if (profile) {
         if (typeof window !== 'undefined') {
@@ -287,10 +256,9 @@ export const useStore = create<AppState>((set, get) => {
           console.error("Supabase registerStudent failed:", e);
         }
       }
-      const saved = db.upsertStudent(newStudent);
-      set({ currentStudent: saved });
+      set({ currentStudent: newStudent });
       await get().refreshData();
-      return saved;
+      return newStudent;
     },
 
     updateStudent: async (student) => {
@@ -312,8 +280,7 @@ export const useStore = create<AppState>((set, get) => {
           console.error("Supabase updateStudent failed:", e);
         }
       }
-      const saved = db.upsertStudent(student);
-      set({ currentStudent: saved });
+      set({ currentStudent: student });
       await get().refreshData();
     },
 
@@ -366,33 +333,24 @@ export const useStore = create<AppState>((set, get) => {
 
       if (isFallback) {
         set({
-          competitions: db.getCompetitions(),
-          mentors: db.getMentors(),
-          bookings: db.getSessionRequests(),
-          meetings: db.getMeetings(),
-          winningDecks: db.getWinningDecks(),
-          students: db.getStudents(),
-          frameworks: db.getFrameworks(),
-          quizzes: db.getQuizzes()
+          competitions: [],
+          mentors: [],
+          bookings: [],
+          meetings: [],
+          winningDecks: [],
+          students: [],
+          frameworks: [],
+          quizzes: []
         });
 
         const currentUserEmail = localStorage.getItem('corpus_session_email');
         if (currentUserEmail) {
-          const isSystemAdmin = envAdmins.includes(currentUserEmail.toLowerCase());
-          const profile = db.getUserByEmail(currentUserEmail);
-          if (profile) {
-            const expectedRole = isSystemAdmin ? 'admin' : (profile.role === 'admin' ? 'student' : profile.role);
-            if (profile.role !== expectedRole) {
-              profile.role = expectedRole;
-              db.upsertUser(profile);
-            }
-            set({
-              currentUser: profile,
-              currentRole: profile.role === 'mentor' ? 'student' : profile.role,
-              currentStudent: profile as unknown as Student,
-              currentMentor: null
-            });
-          }
+          set({
+            currentUser: null,
+            currentRole: 'student',
+            currentStudent: null,
+            currentMentor: null
+          });
         }
       } else {
         try {
@@ -407,14 +365,14 @@ export const useStore = create<AppState>((set, get) => {
             client.from('quizzes').select('*')
           ]);
 
-          const liveCompetitions = compRes.data && compRes.data.length > 0 ? compRes.data : db.getCompetitions();
-          const liveMentors = mentorRes.data && mentorRes.data.length > 0 ? (mentorRes.data as unknown as Mentor[]) : db.getMentors();
-          const liveBookings = bookingRes.data && bookingRes.data.length > 0 ? bookingRes.data : db.getSessionRequests();
-          const liveMeetings = meetingRes.data && meetingRes.data.length > 0 ? meetingRes.data : db.getMeetings();
-          const liveDecks = deckRes.data && deckRes.data.length > 0 ? deckRes.data : db.getWinningDecks();
-          const liveStudents = studentRes.data && studentRes.data.length > 0 ? (studentRes.data as unknown as Student[]) : db.getStudents();
-          const liveFrameworks = fwRes.data && fwRes.data.length > 0 ? fwRes.data : db.getFrameworks();
-          const liveQuizzes = quizRes.data && quizRes.data.length > 0 ? quizRes.data : db.getQuizzes();
+          const liveCompetitions = compRes.data || [];
+          const liveMentors = (mentorRes.data as unknown as Mentor[]) || [];
+          const liveBookings = bookingRes.data || [];
+          const liveMeetings = meetingRes.data || [];
+          const liveDecks = deckRes.data || [];
+          const liveStudents = (studentRes.data as unknown as Student[]) || [];
+          const liveFrameworks = fwRes.data || [];
+          const liveQuizzes = quizRes.data || [];
 
           set({
             competitions: liveCompetitions,
@@ -447,7 +405,7 @@ export const useStore = create<AppState>((set, get) => {
             }
           }
         } catch (e) {
-          console.error("Supabase sync failed, falling back to LocalDb", e);
+          console.error("Supabase sync failed, falling back to empty state", e);
         }
       }
     },
@@ -539,15 +497,11 @@ export const useStore = create<AppState>((set, get) => {
         try {
           const { error } = await supabase.from('bookings').insert(newBooking);
           if (error) {
-            console.error("Supabase booking failed, falling back to LocalDb:", error);
-            db.createSessionRequest(newBooking);
+            console.error("Supabase booking failed:", error);
           }
         } catch (e) {
-          console.error("Supabase booking exception, falling back to LocalDb:", e);
-          db.createSessionRequest(newBooking);
+          console.error("Supabase booking exception:", e);
         }
-      } else {
-        db.createSessionRequest(newBooking);
       }
 
       await get().refreshData();
@@ -565,8 +519,7 @@ export const useStore = create<AppState>((set, get) => {
 
           const { data, error } = await supabase.from('bookings').update(updates).eq('id', bookingId).select().maybeSingle();
           if (error) {
-            console.error("Supabase session update failed, falling back to LocalDb:", error);
-            updatedBooking = db.updateSessionRequestStatus(bookingId, status, preferred_time);
+            console.error("Supabase session update failed:", error);
           } else {
             updatedBooking = data;
 
@@ -583,16 +536,12 @@ export const useStore = create<AppState>((set, get) => {
               const { error: meetError } = await supabase.from('meetings').insert(newMeeting);
               if (meetError) {
                 console.error("Supabase meeting insert failed:", meetError);
-                db.createMeeting(newMeeting);
               }
             }
           }
         } catch (e) {
-          console.error("Supabase session update failed, falling back to LocalDb:", e);
-          updatedBooking = db.updateSessionRequestStatus(bookingId, status, preferred_time);
+          console.error("Supabase session update failed:", e);
         }
-      } else {
-        updatedBooking = db.updateSessionRequestStatus(bookingId, status, preferred_time);
       }
 
       if (updatedBooking) {
@@ -608,9 +557,6 @@ export const useStore = create<AppState>((set, get) => {
           } catch (e) {
             console.error("Fetch profiles failed for emails:", e);
           }
-        } else {
-          studentObj = db.getStudent(updatedBooking.student_id);
-          mentorObj = db.getMentor(updatedBooking.mentor_id);
         }
 
         const { emailService } = require('./emailService');
@@ -645,7 +591,6 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
       }
-      db.upsertCompetition(comp);
       get().addSystemNotification({
         id: `add-comp-${Date.now()}`,
         title: '🏆 Competition Published',
@@ -671,16 +616,13 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
       }
-      const success = db.deleteCompetition(compId);
-      if (success) {
-        get().addSystemNotification({
-          id: `del-comp-${Date.now()}`,
-          title: '🗑️ Competition Removed',
-          message: `Competition ID ${compId} was removed from the database.`,
-          type: 'system',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
-      }
+      get().addSystemNotification({
+        id: `del-comp-${Date.now()}`,
+        title: '🗑️ Competition Removed',
+        message: `Competition ID ${compId} was removed from the database.`,
+        type: 'system',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
       await get().refreshData();
     },
 
@@ -733,7 +675,6 @@ export const useStore = create<AppState>((set, get) => {
         }
       }
       
-      db.upsertMentor(mentor);
       get().addSystemNotification({
         id: `add-mentor-${Date.now()}`,
         title: '🤝 Mentor Profile Published',
@@ -760,16 +701,13 @@ export const useStore = create<AppState>((set, get) => {
         }
       }
       
-      const success = db.deleteMentor(mentorId);
-      if (success) {
-        get().addSystemNotification({
-          id: `del-mentor-${Date.now()}`,
-          title: '🗑️ Mentor Removed',
-          message: `Mentor profile ID ${mentorId} was removed from the database.`,
-          type: 'system',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
-      }
+      get().addSystemNotification({
+        id: `del-mentor-${Date.now()}`,
+        title: '🗑️ Mentor Removed',
+        message: `Mentor profile ID ${mentorId} was removed from the database.`,
+        type: 'system',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
       await get().refreshData();
     },
 
@@ -815,7 +753,6 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
       }
-      db.grantAdmin(emailLower);
       
       get().addSystemNotification({
         id: `grant-admin-${Date.now()}`,
@@ -843,7 +780,6 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
       }
-      db.revokeAdmin(emailLower);
 
       get().addSystemNotification({
         id: `revoke-admin-${Date.now()}`,
@@ -883,7 +819,6 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
       }
-      db.upsertMentor(mentor);
       get().addSystemNotification({
         id: `update-mentor-${Date.now()}`,
         title: '🤝 Mentor Profile Updated',
@@ -909,7 +844,6 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
       }
-      db.upsertWinningDeck(deck);
       get().addSystemNotification({
         id: `add-deck-${Date.now()}`,
         title: '📂 New Winning Deck Added',
@@ -935,7 +869,6 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
       }
-      db.upsertWinningDeck(deck);
       get().addSystemNotification({
         id: `update-deck-${Date.now()}`,
         title: '📂 Winning Deck Updated',
@@ -961,16 +894,13 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
       }
-      const success = db.deleteWinningDeck(deckId);
-      if (success) {
-        get().addSystemNotification({
-          id: `del-deck-${Date.now()}`,
-          title: '🗑️ Winning Deck Removed',
-          message: `Deck ID ${deckId} has been removed.`,
-          type: 'system',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
-      }
+      get().addSystemNotification({
+        id: `del-deck-${Date.now()}`,
+        title: '🗑️ Winning Deck Removed',
+        message: `Deck ID ${deckId} has been removed.`,
+        type: 'system',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
       await get().refreshData();
     },
 
@@ -989,7 +919,6 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
       }
-      db.upsertFramework(fw);
       await get().refreshData();
     },
 
@@ -1008,7 +937,6 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
       }
-      db.upsertFramework(fw);
       await get().refreshData();
     },
 
@@ -1027,7 +955,6 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
       }
-      db.deleteFramework(fwId);
       await get().refreshData();
     },
 
@@ -1048,7 +975,6 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
       }
-      db.upsertQuiz(quiz);
       await get().refreshData();
     },
 
@@ -1067,7 +993,6 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
       }
-      db.upsertQuiz(quiz);
       await get().refreshData();
     },
 
@@ -1086,7 +1011,6 @@ export const useStore = create<AppState>((set, get) => {
           return;
         }
       }
-      db.deleteQuiz(quizId);
       await get().refreshData();
     }
   };

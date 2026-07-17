@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
-import { db, Student } from '@/lib/db';
+import { Student } from '@/lib/db';
 import { 
   User, 
   Settings, 
@@ -31,7 +31,8 @@ export default function StudentPortal() {
     meetings, 
     addSystemNotification,
     refreshData,
-    currentRole
+    currentRole,
+    mentors
   } = useStore();
 
   const [activePortalTab, setActivePortalTab] = useState<'dashboard' | 'profile'>('dashboard');
@@ -447,7 +448,7 @@ export default function StudentPortal() {
                   </div>
                 ) : (
                   studentBookings.map(booking => {
-                    const mentorObj = db.getMentor(booking.mentor_id);
+                    const mentorObj = mentors.find(m => m.id === booking.mentor_id);
                     const meetingObj = meetings.find(m => m.session_id === booking.id);
                     
                     return (

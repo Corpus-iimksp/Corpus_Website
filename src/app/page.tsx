@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 export default function Home() {
-  const { competitions, mentors, bookSession, currentStudent } = useStore();
+  const { competitions, mentors, students, bookSession, currentStudent } = useStore();
   const [selectedMentor, setSelectedMentor] = useState<any | null>(null);
   const [bookingTime, setBookingTime] = useState('');
   const [bookingNotes, setBookingNotes] = useState('');
@@ -35,15 +35,10 @@ export default function Home() {
   }, []);
 
   const stats = [
-    { label: 'Live Opportunities', val: '10' },
-    { label: 'Mentors Available', val: '15' },
-    { label: 'Total Student Registered', val: '100' },
-    { label: 'National Winners', val: '3' }
-  ];
-
-  const testimonials = [
-    { name: 'Kunal Verma', role: 'PGP MBA 2nd Year', quote: 'CORPUS was my secret weapon for L\'Oréal Brandstorm. The profitability framework and the mock feedback from Abhishek helped us clinch the National Semi-finals.', rating: 5, avatar: 'KV' },
-    { name: 'Shreya Iyer', role: 'PGP MBA 1st Year', quote: 'Connecting with Priya gave us instant clarity on HUL L.I.M.E.\'s target persona. Highly recommend booking a session before submitting your executive summary!', rating: 5, avatar: 'SI' }
+    { label: 'Live Opportunities', val: String(competitions.length) },
+    { label: 'Mentors Available', val: String(mentors.length) },
+    { label: 'Total Student Registered', val: String(students.length) },
+    { label: 'National Winners', val: String(students.filter(s => s.wins && s.wins > 0).length) }
   ];
 
   const handleBooking = (e: React.FormEvent) => {
@@ -65,6 +60,14 @@ export default function Home() {
       setBookingProofName('');
     }, 2000);
   };
+
+  const leaderboardCandidates = [...(students || [])]
+    .map(s => ({
+      ...s,
+      xp: (s.wins || 0) * 500 + (s.shortlists || 0) * 200 + (s.participations || 0) * 50
+    }))
+    .sort((a, b) => b.xp - a.xp)
+    .slice(0, 5);
 
   return (
     <div className="relative min-h-screen bg-transparent text-zinc-100 pb-20">
@@ -243,187 +246,73 @@ export default function Home() {
       </section>
 
       {/* Leaderboards Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-8 mb-24">
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-24">
         
-        {/* Left Column: Corpus 2025-26 Leaderboard */}
+        {/* Main Dynamic Leaderboard */}
         <div className="glass-card p-6 rounded-2xl">
           <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
             <div>
-              <h2 className="text-lg font-black text-white">🏆 Corpus 2025-26 Leaderboard</h2>
-              <span className="text-[11px] text-zinc-500 font-medium">Top performers ranked by accumulated XP Points</span>
-            </div>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-              Season 2025-26
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            {/* Rank 1 */}
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-indigo-950/20 border border-indigo-500/10">
-              <div className="flex items-center gap-3">
-                <span className="w-5 text-center font-black text-amber-400 text-sm">1</span>
-                <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center font-bold text-xs text-indigo-300 uppercase">
-                  AS
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-zinc-200">Abhishek Sen (Mentor)</h4>
-                  <span className="text-[9px] text-zinc-500">2 wins, 1 runner-up | Bain & Co.</span>
-                </div>
-              </div>
-              <span className="text-xs font-bold text-indigo-300">1,200 XP Points</span>
-            </div>
-
-            {/* Rank 2 */}
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/40 border border-white/5">
-              <div className="flex items-center gap-3">
-                <span className="w-5 text-center font-black text-zinc-400 text-sm">2</span>
-                <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center font-bold text-xs text-purple-300 uppercase">
-                  RM
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-zinc-200">Rohan Mehta (Mentor)</h4>
-                  <span className="text-[9px] text-zinc-500">1 win, 2 final lists | Microsoft PM</span>
-                </div>
-              </div>
-              <span className="text-xs font-bold text-purple-300">1,050 XP Points</span>
-            </div>
-
-            {/* Rank 3 */}
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/40 border border-white/5">
-              <div className="flex items-center gap-3">
-                <span className="w-5 text-center font-black text-amber-750 text-sm">3</span>
-                <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center font-bold text-xs text-emerald-300 uppercase">
-                  PS
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-zinc-200">Priya Sharma (Mentor)</h4>
-                  <span className="text-[9px] text-zinc-500">1 win | HUL Management Trainee</span>
-                </div>
-              </div>
-              <span className="text-xs font-bold text-emerald-300">980 XP Points</span>
-            </div>
-
-            {/* Rank 4 */}
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/40 border border-white/5">
-              <div className="flex items-center gap-3">
-                <span className="w-5 text-center font-semibold text-zinc-600 text-xs">4</span>
-                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-semibold text-xs text-zinc-300 uppercase">
-                  {mounted && currentStudent ? currentStudent.name.substring(0, 2) : 'AS'}
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-zinc-200">
-                    {mounted && currentStudent ? `${currentStudent.name} (Mentee)` : 'Aravind Swamy (Mentee)'}
-                  </h4>
-                  <span className="text-[9px] text-zinc-500">1 win, 2 shortlists | PGP1 Student</span>
-                </div>
-              </div>
-              <span className="text-xs font-bold text-zinc-400">820 XP Points</span>
-            </div>
-
-            {/* Rank 5 */}
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/40 border border-white/5">
-              <div className="flex items-center gap-3">
-                <span className="w-5 text-center font-semibold text-zinc-600 text-xs">5</span>
-                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-semibold text-xs text-zinc-300 uppercase">
-                  SI
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-zinc-200">Shreya Iyer (Mentee)</h4>
-                  <span className="text-[9px] text-zinc-500">1 shortlist | PGP1 Student</span>
-                </div>
-              </div>
-              <span className="text-xs font-bold text-zinc-400">750 XP Points</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Corpus 2026-27 Leaderboard */}
-        <div className="glass-card p-6 rounded-2xl">
-          <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
-            <div>
-              <h2 className="text-lg font-black text-white">🏆 Corpus 2026-27 Leaderboard</h2>
-              <span className="text-[11px] text-zinc-500 font-medium">Top active candidates ranked by current experience points</span>
+              <h2 className="text-lg font-black text-white">🏆 Corpus Leaderboard</h2>
+              <span className="text-[11px] text-zinc-500 font-medium">Top candidates ranked by current experience points</span>
             </div>
             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-300 border border-purple-500/20">
-              Season 2026-27
+              Live Standings
             </span>
           </div>
 
           <div className="space-y-3">
-            {/* Rank 1 */}
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-950/20 border border-purple-500/10">
-              <div className="flex items-center gap-3">
-                <span className="w-5 text-center font-black text-amber-400 text-sm">1</span>
-                <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center font-bold text-xs text-purple-300 uppercase">
-                  KV
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-zinc-200">Kunal Verma (Mentee)</h4>
-                  <span className="text-[9px] text-zinc-500">2 wins, Brandstorm National Finalist</span>
-                </div>
+            {leaderboardCandidates.length === 0 ? (
+              <div className="text-center py-8 text-xs text-zinc-500 border border-dashed border-white/5 rounded-xl">
+                No candidates registered yet. Leaderboard is empty.
               </div>
-              <span className="text-xs font-bold text-purple-300">1,450 Experience Points</span>
-            </div>
+            ) : (
+              leaderboardCandidates.map((candidate, idx) => {
+                const rank = idx + 1;
+                const initials = candidate.name
+                  .split(' ')
+                  .map((n: string) => n.charAt(0))
+                  .join('')
+                  .toUpperCase()
+                  .slice(0, 2);
 
-            {/* Rank 2 */}
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/40 border border-white/5">
-              <div className="flex items-center gap-3">
-                <span className="w-5 text-center font-black text-zinc-400 text-sm">2</span>
-                <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center font-bold text-xs text-indigo-300 uppercase">
-                  AS
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-zinc-200">Abhishek Sen (Mentor)</h4>
-                  <span className="text-[9px] text-zinc-500">Associate Consultant | Bain & Co.</span>
-                </div>
-              </div>
-              <span className="text-xs font-bold text-indigo-300">1,300 Experience Points</span>
-            </div>
-
-            {/* Rank 3 */}
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/40 border border-white/5">
-              <div className="flex items-center gap-3">
-                <span className="w-5 text-center font-black text-amber-750 text-sm">3</span>
-                <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center font-bold text-xs text-emerald-300 uppercase">
-                  PS
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-zinc-200">Priya Sharma (Mentor)</h4>
-                  <span className="text-[9px] text-zinc-500">Management Trainee | HUL</span>
-                </div>
-              </div>
-              <span className="text-xs font-bold text-emerald-300">1,150 Experience Points</span>
-            </div>
-
-            {/* Rank 4 */}
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/40 border border-white/5">
-              <div className="flex items-center gap-3">
-                <span className="w-5 text-center font-semibold text-zinc-600 text-xs">4</span>
-                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-semibold text-xs text-zinc-300 uppercase">
-                  RM
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-zinc-200">Rohan Mehta (Mentor)</h4>
-                  <span className="text-[9px] text-zinc-500">Product Manager | Microsoft</span>
-                </div>
-              </div>
-              <span className="text-xs font-bold text-zinc-400">980 Experience Points</span>
-            </div>
-
-            {/* Rank 5 */}
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/40 border border-white/5">
-              <div className="flex items-center gap-3">
-                <span className="w-5 text-center font-semibold text-zinc-600 text-xs">5</span>
-                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-semibold text-xs text-zinc-300 uppercase">
-                  RG
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-zinc-200">Riya Goel (Mentee)</h4>
-                  <span className="text-[9px] text-zinc-500">1 win | PGP2 Student</span>
-                </div>
-              </div>
-              <span className="text-xs font-bold text-zinc-400">880 Experience Points</span>
-            </div>
+                const isTop1 = rank === 1;
+                const rowBg = isTop1 
+                  ? 'bg-purple-950/20 border border-purple-500/10' 
+                  : 'bg-zinc-900/40 border border-white/5';
+                const rankColor = rank === 1 
+                  ? 'text-amber-400 font-black text-sm' 
+                  : rank === 2 
+                  ? 'text-zinc-400 font-black text-sm' 
+                  : rank === 3 
+                  ? 'text-amber-700 font-black text-sm' 
+                  : 'text-zinc-600 font-semibold text-xs';
+                const avatarBg = rank === 1
+                  ? 'bg-purple-500/20 text-purple-300'
+                  : rank === 2
+                  ? 'bg-indigo-500/20 text-indigo-300'
+                  : 'bg-emerald-500/20 text-emerald-300';
+                  
+                return (
+                  <div key={candidate.id} className={`flex items-center justify-between p-2.5 rounded-xl ${rowBg}`}>
+                    <div className="flex items-center gap-3">
+                      <span className={`w-5 text-center ${rankColor}`}>{rank}</span>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs uppercase ${avatarBg}`}>
+                        {initials}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-xs text-zinc-200">{candidate.name}</h4>
+                        <span className="text-[9px] text-zinc-500">
+                          {candidate.wins || 0} wins, {candidate.shortlists || 0} shortlists | {candidate.program || 'Student'}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`text-xs font-bold ${rank === 1 ? 'text-purple-300' : 'text-zinc-400'}`}>
+                      {candidate.xp.toLocaleString()} Experience Points
+                    </span>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
