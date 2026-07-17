@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   profile_photo TEXT,
   available_days TEXT[],
   available_slots TEXT[],
+  saved_competitions TEXT[] DEFAULT '{}',
+  competition_stages JSONB DEFAULT '{}',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );
 

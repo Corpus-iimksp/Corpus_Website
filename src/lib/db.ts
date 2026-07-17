@@ -16,6 +16,8 @@ export interface Student {
   shortlists: number;
   participations: number;
   created_at?: string;
+  saved_competitions?: string[];
+  competition_stages?: Record<string, 'saved' | 'participated' | 'shortlisted' | 'won'>;
 }
 
 export interface Mentor {
@@ -167,6 +169,8 @@ export interface UserProfile {
   available_days?: string[];
   available_slots?: string[];
   created_at?: string;
+  saved_competitions?: string[];
+  competition_stages?: Record<string, 'saved' | 'participated' | 'shortlisted' | 'won'>;
 }
 
 const DEFAULT_USERS: UserProfile[] = [];

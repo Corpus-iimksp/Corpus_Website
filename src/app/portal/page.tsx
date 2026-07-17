@@ -41,14 +41,29 @@ export default function StudentPortal() {
   // Competition stages mapping
   const [competitionStages, setCompetitionStages] = useState<Record<string, 'saved' | 'participated' | 'shortlisted' | 'won'>>({});
 
+  // Sync state with database (with auto-migration from local storage to database)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedStages = localStorage.getItem('corpus_competition_stages');
-      if (savedStages) {
-        setCompetitionStages(JSON.parse(savedStages));
+    if (currentStudent) {
+      if (currentStudent.competition_stages && Object.keys(currentStudent.competition_stages).length > 0) {
+        setCompetitionStages(currentStudent.competition_stages);
+      } else {
+        const savedStages = localStorage.getItem('corpus_competition_stages');
+        if (savedStages) {
+          try {
+            const parsed = JSON.parse(savedStages);
+            setCompetitionStages(parsed);
+            // Migrate local browser progress to the database
+            updateStudent({
+              ...currentStudent,
+              competition_stages: parsed
+            });
+          } catch (e) {
+            console.error(e);
+          }
+        }
       }
     }
-  }, []);
+  }, [currentStudent]);
 
   // Profile Form States
   const [profileName, setProfileName] = useState(currentStudent?.name || '');
@@ -107,7 +122,8 @@ export default function StudentPortal() {
       ...currentStudent,
       wins: Math.max(0, (currentStudent.wins || 0) + deltaWins),
       shortlists: Math.max(0, (currentStudent.shortlists || 0) + deltaShortlists),
-      participations: Math.max(0, (currentStudent.participations || 0) + deltaParticipations)
+      participations: Math.max(0, (currentStudent.participations || 0) + deltaParticipations),
+      competition_stages: updatedStages
     });
 
     // 3. Add system notification

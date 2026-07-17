@@ -126,7 +126,14 @@ const DEFAULT_USERS = [
     badges: ['Case Champion', 'First Competition'],
     wins: 1,
     shortlists: 2,
-    participations: 4
+    participations: 4,
+    saved_competitions: ['comp-1', 'comp-2', 'comp-3', 'comp-4'],
+    competition_stages: {
+      "comp-1": "won",
+      "comp-2": "shortlisted",
+      "comp-3": "participated",
+      "comp-4": "participated"
+    }
   },
   {
     id: 'mentor-1',

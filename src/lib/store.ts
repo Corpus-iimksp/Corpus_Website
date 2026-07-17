@@ -188,7 +188,8 @@ export const useStore = create<AppState>((set, get) => {
           currentUser: profile,
           currentRole: profile.role === 'mentor' ? 'student' : profile.role,
           currentStudent: profile as unknown as Student,
-          currentMentor: null
+          currentMentor: null,
+          savedCompetitions: profile.saved_competitions || []
         });
 
         get().addSystemNotification({
@@ -214,7 +215,8 @@ export const useStore = create<AppState>((set, get) => {
         currentUser: null,
         currentRole: 'student',
         currentStudent: null,
-        currentMentor: null
+        currentMentor: null,
+        savedCompetitions: []
       });
       get().addSystemNotification({
         id: `auth-${Date.now()}`,
@@ -232,7 +234,9 @@ export const useStore = create<AppState>((set, get) => {
         badges: ['First Step'],
         wins: 0,
         shortlists: 0,
-        participations: 0
+        participations: 0,
+        saved_competitions: [],
+        competition_stages: {}
       };
       if (supabase) {
         try {
@@ -250,7 +254,9 @@ export const useStore = create<AppState>((set, get) => {
             badges: newStudent.badges,
             wins: newStudent.wins,
             shortlists: newStudent.shortlists,
-            participations: newStudent.participations
+            participations: newStudent.participations,
+            saved_competitions: [],
+            competition_stages: {}
           });
         } catch (e) {
           console.error("Supabase registerStudent failed:", e);
@@ -274,7 +280,9 @@ export const useStore = create<AppState>((set, get) => {
             resume: student.resume,
             wins: student.wins,
             shortlists: student.shortlists,
-            participations: student.participations
+            participations: student.participations,
+            saved_competitions: student.saved_competitions || [],
+            competition_stages: student.competition_stages || {}
           }).eq('email', student.email);
         } catch (e) {
           console.error("Supabase updateStudent failed:", e);
@@ -284,12 +292,20 @@ export const useStore = create<AppState>((set, get) => {
       await get().refreshData();
     },
 
-    toggleBookmark: (compId) => {
+    toggleBookmark: async (compId) => {
       const current = get().savedCompetitions;
       const updated = current.includes(compId)
         ? current.filter(id => id !== compId)
         : [...current, compId];
       set({ savedCompetitions: updated });
+
+      const currentStudent = get().currentStudent;
+      if (currentStudent) {
+        await get().updateStudent({
+          ...currentStudent,
+          saved_competitions: updated
+        });
+      }
 
       // Trigger standard system notification
       const comp = get().competitions.find(c => c.id === compId);
@@ -409,7 +425,8 @@ export const useStore = create<AppState>((set, get) => {
                 currentUser: updatedProfile,
                 currentRole: (updatedProfile.role === 'mentor' ? 'student' : updatedProfile.role) as UserRole,
                 currentStudent: updatedProfile as unknown as Student,
-                currentMentor: null
+                currentMentor: null,
+                savedCompetitions: updatedProfile.saved_competitions || []
               });
             }
           }
