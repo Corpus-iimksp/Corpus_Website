@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { db, Student, Mentor, Competition, SessionRequest, Meeting, UserProfile, WinningDeck, Framework, BasicsTopic, Quiz, supabase } from './db';
+import { db, Student, Mentor, Competition, SessionRequest, Meeting, UserProfile, WinningDeck, Framework, Quiz, supabase } from './db';
 
 // Role simulation type
 export type UserRole = 'student' | 'mentor' | 'admin';
@@ -27,12 +27,11 @@ interface AppState {
   winningDecks: WinningDeck[];
   students: Student[];
   frameworks: Framework[];
-  basicsTopics: BasicsTopic[];
   quizzes: Quiz[];
   
   // Actions
   setRole: (role: UserRole) => void;
-  registerStudent: (student: Omit<Student, 'id' | 'badges' | 'wins' | 'shortlists' | 'participations'>) => Student;
+  registerStudent: (student: Omit<Student, 'id' | 'badges' | 'wins' | 'shortlists' | 'participations'>) => Promise<Student>;
   updateStudent: (student: Student) => void;
   toggleBookmark: (compId: string) => void;
   addSystemNotification: (notification: Omit<SystemNotification, 'read'>) => void;
@@ -71,9 +70,7 @@ interface AppState {
   updateFramework: (fw: Framework) => Promise<void>;
   deleteFramework: (fwId: string) => Promise<void>;
 
-  addBasicsTopic: (topic: BasicsTopic) => Promise<void>;
-  updateBasicsTopic: (topic: BasicsTopic) => Promise<void>;
-  deleteBasicsTopic: (topicId: string) => Promise<void>;
+
 
   addQuiz: (quiz: Quiz) => Promise<void>;
   updateQuiz: (quiz: Quiz) => Promise<void>;
@@ -121,7 +118,6 @@ export const useStore = create<AppState>((set, get) => {
     winningDecks: [],
     students: [],
     frameworks: [],
-    basicsTopics: [],
     quizzes: [],
 
     setRole: (role) => {
@@ -260,7 +256,7 @@ export const useStore = create<AppState>((set, get) => {
       });
     },
 
-    registerStudent: (studentData) => {
+    registerStudent: async (studentData) => {
       const newStudent: Student = {
         ...studentData,
         id: `student-${Date.now()}`,
@@ -269,9 +265,31 @@ export const useStore = create<AppState>((set, get) => {
         shortlists: 0,
         participations: 0
       };
+      if (supabase) {
+        try {
+          await supabase.from('users').insert({
+            id: newStudent.id,
+            name: newStudent.name,
+            email: newStudent.email,
+            role: 'student',
+            college: newStudent.college,
+            program: newStudent.program,
+            year: newStudent.year,
+            resume: newStudent.resume,
+            linkedin: newStudent.linkedin,
+            interests: newStudent.interests || [],
+            badges: newStudent.badges,
+            wins: newStudent.wins,
+            shortlists: newStudent.shortlists,
+            participations: newStudent.participations
+          });
+        } catch (e) {
+          console.error("Supabase registerStudent failed:", e);
+        }
+      }
       const saved = db.upsertStudent(newStudent);
       set({ currentStudent: saved });
-      get().refreshData();
+      await get().refreshData();
       return saved;
     },
 
@@ -289,7 +307,7 @@ export const useStore = create<AppState>((set, get) => {
             wins: student.wins,
             shortlists: student.shortlists,
             participations: student.participations
-          }).eq('id', student.id);
+          }).eq('email', student.email);
         } catch (e) {
           console.error("Supabase updateStudent failed:", e);
         }
@@ -355,7 +373,6 @@ export const useStore = create<AppState>((set, get) => {
           winningDecks: db.getWinningDecks(),
           students: db.getStudents(),
           frameworks: db.getFrameworks(),
-          basicsTopics: db.getBasicsTopics(),
           quizzes: db.getQuizzes()
         });
 
@@ -379,7 +396,7 @@ export const useStore = create<AppState>((set, get) => {
         }
       } else {
         try {
-          const [compRes, mentorRes, bookingRes, meetingRes, deckRes, studentRes, fwRes, topicRes, quizRes] = await Promise.all([
+          const [compRes, mentorRes, bookingRes, meetingRes, deckRes, studentRes, fwRes, quizRes] = await Promise.all([
             client.from('competitions').select('*'),
             client.from('users').select('*').eq('role', 'mentor'),
             client.from('bookings').select('*'),
@@ -387,7 +404,6 @@ export const useStore = create<AppState>((set, get) => {
             client.from('winning_decks').select('*'),
             client.from('users').select('*').eq('role', 'student'),
             client.from('frameworks').select('*'),
-            client.from('code_basics').select('*'),
             client.from('quizzes').select('*')
           ]);
 
@@ -398,12 +414,6 @@ export const useStore = create<AppState>((set, get) => {
           const liveDecks = deckRes.data && deckRes.data.length > 0 ? deckRes.data : db.getWinningDecks();
           const liveStudents = studentRes.data && studentRes.data.length > 0 ? (studentRes.data as unknown as Student[]) : db.getStudents();
           const liveFrameworks = fwRes.data && fwRes.data.length > 0 ? fwRes.data : db.getFrameworks();
-          const liveTopics = topicRes.data && topicRes.data.length > 0 ? topicRes.data.map((t: any) => ({
-            id: t.id,
-            title: t.title,
-            desc: t.desc_text || t.desc || '',
-            insights: t.insights || []
-          })) : db.getBasicsTopics();
           const liveQuizzes = quizRes.data && quizRes.data.length > 0 ? quizRes.data : db.getQuizzes();
 
           set({
@@ -414,7 +424,6 @@ export const useStore = create<AppState>((set, get) => {
             winningDecks: liveDecks,
             students: liveStudents,
             frameworks: liveFrameworks,
-            basicsTopics: liveTopics,
             quizzes: liveQuizzes
           });
 
@@ -514,38 +523,31 @@ export const useStore = create<AppState>((set, get) => {
       const student = get().currentStudent;
       if (!student) return;
 
+      const bookingId = `booking-${Date.now()}`;
+      const newBooking = {
+        id: bookingId,
+        student_id: student.id,
+        mentor_id: mentorId,
+        status: 'pending_admin',
+        preferred_time: preferredTime,
+        notes: notes,
+        competition_name: competitionName,
+        proof_url: proofUrl
+      };
+
       if (supabase) {
         try {
-          const newBooking = {
-            student_id: student.id,
-            mentor_id: mentorId,
-            status: 'pending_admin',
-            preferred_time: preferredTime,
-            notes: notes,
-            competition_name: competitionName,
-            proof_url: proofUrl
-          };
-          await supabase.from('bookings').insert(newBooking);
+          const { error } = await supabase.from('bookings').insert(newBooking);
+          if (error) {
+            console.error("Supabase booking failed, falling back to LocalDb:", error);
+            db.createSessionRequest(newBooking);
+          }
         } catch (e) {
-          console.error("Supabase booking failed, falling back to LocalDb:", e);
-          db.createSessionRequest({
-            student_id: student.id,
-            mentor_id: mentorId,
-            preferred_time: preferredTime,
-            notes: notes,
-            competition_name: competitionName,
-            proof_url: proofUrl
-          });
+          console.error("Supabase booking exception, falling back to LocalDb:", e);
+          db.createSessionRequest(newBooking);
         }
       } else {
-        db.createSessionRequest({
-          student_id: student.id,
-          mentor_id: mentorId,
-          preferred_time: preferredTime,
-          notes: notes,
-          competition_name: competitionName,
-          proof_url: proofUrl
-        });
+        db.createSessionRequest(newBooking);
       }
 
       await get().refreshData();
@@ -561,14 +563,30 @@ export const useStore = create<AppState>((set, get) => {
             updates.preferred_time = preferred_time;
           }
 
-          if (status === 'approved') {
-            const meetingId = Math.floor(100000000 + Math.random() * 900000000).toString();
-            updates.zoom_id = meetingId;
-            updates.zoom_link = `https://zoom.us/j/${meetingId}`;
-          }
+          const { data, error } = await supabase.from('bookings').update(updates).eq('id', bookingId).select().maybeSingle();
+          if (error) {
+            console.error("Supabase session update failed, falling back to LocalDb:", error);
+            updatedBooking = db.updateSessionRequestStatus(bookingId, status, preferred_time);
+          } else {
+            updatedBooking = data;
 
-          const { data } = await supabase.from('bookings').update(updates).eq('id', bookingId).select().maybeSingle();
-          updatedBooking = data;
+            // If approved, create meeting record in Supabase
+            if (status === 'approved' && updatedBooking) {
+              const meetingId = Math.floor(100000000 + Math.random() * 900000000).toString();
+              const newMeeting = {
+                id: `meet-${Date.now()}`,
+                session_id: bookingId,
+                zoom_id: meetingId,
+                zoom_link: `https://zoom.us/j/${meetingId}`,
+                meeting_time: updatedBooking.preferred_time
+              };
+              const { error: meetError } = await supabase.from('meetings').insert(newMeeting);
+              if (meetError) {
+                console.error("Supabase meeting insert failed:", meetError);
+                db.createMeeting(newMeeting);
+              }
+            }
+          }
         } catch (e) {
           console.error("Supabase session update failed, falling back to LocalDb:", e);
           updatedBooking = db.updateSessionRequestStatus(bookingId, status, preferred_time);
@@ -615,9 +633,16 @@ export const useStore = create<AppState>((set, get) => {
     addCompetition: async (comp) => {
       if (supabase) {
         try {
-          await supabase.from('competitions').upsert(comp);
+          const { error } = await supabase.from('competitions').upsert(comp);
+          if (error) {
+            console.error("Supabase addCompetition failed:", error);
+            alert(`Failed to save competition to Supabase: ${error.message}\n${error.details || ''}`);
+            return;
+          }
         } catch (e) {
-          console.error("Supabase addCompetition failed:", e);
+          console.error("Supabase addCompetition exception:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       db.upsertCompetition(comp);
@@ -634,9 +659,16 @@ export const useStore = create<AppState>((set, get) => {
     deleteCompetition: async (compId) => {
       if (supabase) {
         try {
-          await supabase.from('competitions').delete().eq('id', compId);
+          const { error } = await supabase.from('competitions').delete().eq('id', compId);
+          if (error) {
+            console.error("Supabase deleteCompetition failed:", error);
+            alert(`Failed to delete competition from Supabase: ${error.message}`);
+            return;
+          }
         } catch (e) {
-          console.error("Supabase deleteCompetition failed:", e);
+          console.error("Supabase deleteCompetition exception:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       const success = db.deleteCompetition(compId);
@@ -670,17 +702,34 @@ export const useStore = create<AppState>((set, get) => {
             available_slots: mentor.available_slots || ['18:00 - 19:00', '20:00 - 21:00']
           };
           
-          const { data: existingUser } = await supabase.from('users').select('*').eq('email', mentor.email).maybeSingle();
+          const { data: existingUser, error: selectError } = await supabase.from('users').select('*').eq('email', mentor.email).maybeSingle();
+          if (selectError) {
+            console.error("Supabase select error in addMentor:", selectError);
+            alert(`Failed to check existing mentor: ${selectError.message}`);
+            return;
+          }
           if (existingUser) {
-            await supabase.from('users').update(profileUpdates).eq('email', mentor.email);
+            const { error: updateError } = await supabase.from('users').update(profileUpdates).eq('email', mentor.email);
+            if (updateError) {
+              console.error("Supabase update error in addMentor:", updateError);
+              alert(`Failed to update mentor profile: ${updateError.message}`);
+              return;
+            }
           } else {
-            await supabase.from('users').insert({
+            const { error: insertError } = await supabase.from('users').insert({
               id: mentor.id,
               ...profileUpdates
             });
+            if (insertError) {
+              console.error("Supabase insert error in addMentor:", insertError);
+              alert(`Failed to insert mentor profile: ${insertError.message}`);
+              return;
+            }
           }
         } catch (e) {
           console.error("Supabase mentor insert failed:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       
@@ -698,9 +747,16 @@ export const useStore = create<AppState>((set, get) => {
     deleteMentor: async (mentorId) => {
       if (supabase) {
         try {
-          await supabase.from('users').delete().eq('id', mentorId);
+          const { error } = await supabase.from('users').delete().eq('id', mentorId);
+          if (error) {
+            console.error("Supabase delete mentor failed:", error);
+            alert(`Failed to delete mentor: ${error.message}`);
+            return;
+          }
         } catch (e) {
           console.error("Supabase delete mentor failed:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       
@@ -721,12 +777,22 @@ export const useStore = create<AppState>((set, get) => {
       const emailLower = email.trim().toLowerCase();
       if (supabase) {
         try {
-          const { data: existingUser } = await supabase.from('users').select('*').eq('email', emailLower).maybeSingle();
+          const { data: existingUser, error: selectError } = await supabase.from('users').select('*').eq('email', emailLower).maybeSingle();
+          if (selectError) {
+            console.error("Supabase select error in grantAdmin:", selectError);
+            alert(`Failed to find user: ${selectError.message}`);
+            return;
+          }
           if (existingUser) {
-            await supabase.from('users').update({ role: 'admin' }).eq('email', emailLower);
+            const { error: updateError } = await supabase.from('users').update({ role: 'admin' }).eq('email', emailLower);
+            if (updateError) {
+              console.error("Supabase update error in grantAdmin:", updateError);
+              alert(`Failed to grant admin: ${updateError.message}`);
+              return;
+            }
           } else {
             const name = emailLower.split('@')[0].split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
-            await supabase.from('users').insert({
+            const { error: insertError } = await supabase.from('users').insert({
               id: `user-${Date.now()}`,
               name,
               email: emailLower,
@@ -737,9 +803,16 @@ export const useStore = create<AppState>((set, get) => {
               shortlists: 0,
               participations: 0
             });
+            if (insertError) {
+              console.error("Supabase insert error in grantAdmin:", insertError);
+              alert(`Failed to insert new admin: ${insertError.message}`);
+              return;
+            }
           }
         } catch (e) {
           console.error("Supabase grantAdmin failed:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       db.grantAdmin(emailLower);
@@ -758,9 +831,16 @@ export const useStore = create<AppState>((set, get) => {
       const emailLower = email.trim().toLowerCase();
       if (supabase) {
         try {
-          await supabase.from('users').update({ role: 'student' }).eq('email', emailLower);
+          const { error } = await supabase.from('users').update({ role: 'student' }).eq('email', emailLower);
+          if (error) {
+            console.error("Supabase revokeAdmin failed:", error);
+            alert(`Failed to revoke admin: ${error.message}`);
+            return;
+          }
         } catch (e) {
           console.error("Supabase revokeAdmin failed:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       db.revokeAdmin(emailLower);
@@ -791,9 +871,16 @@ export const useStore = create<AppState>((set, get) => {
             available_days: mentor.available_days,
             available_slots: mentor.available_slots
           };
-          await supabase.from('users').update(profileUpdates).eq('id', mentor.id);
+          const { error } = await supabase.from('users').update(profileUpdates).eq('id', mentor.id);
+          if (error) {
+            console.error("Supabase updateMentor failed:", error);
+            alert(`Failed to update mentor profile: ${error.message}`);
+            return;
+          }
         } catch (e) {
           console.error("Supabase updateMentor failed:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       db.upsertMentor(mentor);
@@ -810,9 +897,16 @@ export const useStore = create<AppState>((set, get) => {
     addWinningDeck: async (deck) => {
       if (supabase) {
         try {
-          await supabase.from('winning_decks').insert(deck);
+          const { error } = await supabase.from('winning_decks').insert(deck);
+          if (error) {
+            console.error("Supabase addWinningDeck failed:", error);
+            alert(`Failed to add winning deck: ${error.message}`);
+            return;
+          }
         } catch (e) {
-          console.error("Supabase addWinningDeck failed:", e);
+          console.error("Supabase addWinningDeck exception:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       db.upsertWinningDeck(deck);
@@ -829,9 +923,16 @@ export const useStore = create<AppState>((set, get) => {
     updateWinningDeck: async (deck) => {
       if (supabase) {
         try {
-          await supabase.from('winning_decks').update(deck).eq('id', deck.id);
+          const { error } = await supabase.from('winning_decks').update(deck).eq('id', deck.id);
+          if (error) {
+            console.error("Supabase updateWinningDeck failed:", error);
+            alert(`Failed to update winning deck: ${error.message}`);
+            return;
+          }
         } catch (e) {
-          console.error("Supabase updateWinningDeck failed:", e);
+          console.error("Supabase updateWinningDeck exception:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       db.upsertWinningDeck(deck);
@@ -848,9 +949,16 @@ export const useStore = create<AppState>((set, get) => {
     deleteWinningDeck: async (deckId) => {
       if (supabase) {
         try {
-          await supabase.from('winning_decks').delete().eq('id', deckId);
+          const { error } = await supabase.from('winning_decks').delete().eq('id', deckId);
+          if (error) {
+            console.error("Supabase deleteWinningDeck failed:", error);
+            alert(`Failed to delete winning deck: ${error.message}`);
+            return;
+          }
         } catch (e) {
-          console.error("Supabase deleteWinningDeck failed:", e);
+          console.error("Supabase deleteWinningDeck exception:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       const success = db.deleteWinningDeck(deckId);
@@ -869,9 +977,16 @@ export const useStore = create<AppState>((set, get) => {
     addFramework: async (fw) => {
       if (supabase) {
         try {
-          await supabase.from('frameworks').insert(fw);
+          const { error } = await supabase.from('frameworks').insert(fw);
+          if (error) {
+            console.error("Supabase addFramework failed:", error);
+            alert(`Failed to add framework: ${error.message}`);
+            return;
+          }
         } catch (e) {
-          console.error("Supabase addFramework failed:", e);
+          console.error("Supabase addFramework exception:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       db.upsertFramework(fw);
@@ -881,9 +996,16 @@ export const useStore = create<AppState>((set, get) => {
     updateFramework: async (fw) => {
       if (supabase) {
         try {
-          await supabase.from('frameworks').update(fw).eq('id', fw.id);
+          const { error } = await supabase.from('frameworks').update(fw).eq('id', fw.id);
+          if (error) {
+            console.error("Supabase updateFramework failed:", error);
+            alert(`Failed to update framework: ${error.message}`);
+            return;
+          }
         } catch (e) {
-          console.error("Supabase updateFramework failed:", e);
+          console.error("Supabase updateFramework exception:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       db.upsertFramework(fw);
@@ -893,67 +1015,37 @@ export const useStore = create<AppState>((set, get) => {
     deleteFramework: async (fwId) => {
       if (supabase) {
         try {
-          await supabase.from('frameworks').delete().eq('id', fwId);
+          const { error } = await supabase.from('frameworks').delete().eq('id', fwId);
+          if (error) {
+            console.error("Supabase deleteFramework failed:", error);
+            alert(`Failed to delete framework: ${error.message}`);
+            return;
+          }
         } catch (e) {
-          console.error("Supabase deleteFramework failed:", e);
+          console.error("Supabase deleteFramework exception:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       db.deleteFramework(fwId);
       await get().refreshData();
     },
 
-    addBasicsTopic: async (topic) => {
-      if (supabase) {
-        try {
-          await supabase.from('code_basics').insert({
-            id: topic.id,
-            title: topic.title,
-            desc_text: topic.desc,
-            insights: topic.insights
-          });
-        } catch (e) {
-          console.error("Supabase addBasicsTopic failed:", e);
-        }
-      }
-      db.upsertBasicsTopic(topic);
-      await get().refreshData();
-    },
 
-    updateBasicsTopic: async (topic) => {
-      if (supabase) {
-        try {
-          await supabase.from('code_basics').update({
-            id: topic.id,
-            title: topic.title,
-            desc_text: topic.desc,
-            insights: topic.insights
-          }).eq('id', topic.id);
-        } catch (e) {
-          console.error("Supabase updateBasicsTopic failed:", e);
-        }
-      }
-      db.upsertBasicsTopic(topic);
-      await get().refreshData();
-    },
-
-    deleteBasicsTopic: async (topicId) => {
-      if (supabase) {
-        try {
-          await supabase.from('code_basics').delete().eq('id', topicId);
-        } catch (e) {
-          console.error("Supabase deleteBasicsTopic failed:", e);
-        }
-      }
-      db.deleteBasicsTopic(topicId);
-      await get().refreshData();
-    },
 
     addQuiz: async (quiz) => {
       if (supabase) {
         try {
-          await supabase.from('quizzes').insert(quiz);
+          const { error } = await supabase.from('quizzes').insert(quiz);
+          if (error) {
+            console.error("Supabase addQuiz failed:", error);
+            alert(`Failed to add quiz: ${error.message}`);
+            return;
+          }
         } catch (e) {
-          console.error("Supabase addQuiz failed:", e);
+          console.error("Supabase addQuiz exception:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       db.upsertQuiz(quiz);
@@ -963,9 +1055,16 @@ export const useStore = create<AppState>((set, get) => {
     updateQuiz: async (quiz) => {
       if (supabase) {
         try {
-          await supabase.from('quizzes').update(quiz).eq('id', quiz.id);
+          const { error } = await supabase.from('quizzes').update(quiz).eq('id', quiz.id);
+          if (error) {
+            console.error("Supabase updateQuiz failed:", error);
+            alert(`Failed to update quiz: ${error.message}`);
+            return;
+          }
         } catch (e) {
-          console.error("Supabase updateQuiz failed:", e);
+          console.error("Supabase updateQuiz exception:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       db.upsertQuiz(quiz);
@@ -975,9 +1074,16 @@ export const useStore = create<AppState>((set, get) => {
     deleteQuiz: async (quizId) => {
       if (supabase) {
         try {
-          await supabase.from('quizzes').delete().eq('id', quizId);
+          const { error } = await supabase.from('quizzes').delete().eq('id', quizId);
+          if (error) {
+            console.error("Supabase deleteQuiz failed:", error);
+            alert(`Failed to delete quiz: ${error.message}`);
+            return;
+          }
         } catch (e) {
-          console.error("Supabase deleteQuiz failed:", e);
+          console.error("Supabase deleteQuiz exception:", e);
+          alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
+          return;
         }
       }
       db.deleteQuiz(quizId);

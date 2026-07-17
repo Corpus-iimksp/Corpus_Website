@@ -19,8 +19,8 @@ import {
 } from 'lucide-react';
 
 export default function LearningHub() {
-  const { addSystemNotification, winningDecks, frameworks, basicsTopics, quizzes } = useStore();
-  const [activeTab, setActiveTab] = useState<'basics' | 'frameworks' | 'decks' | 'practice'>('frameworks');
+  const { addSystemNotification, winningDecks, frameworks, quizzes } = useStore();
+  const [activeTab, setActiveTab] = useState<'frameworks' | 'decks' | 'practice'>('frameworks');
   
   // Practice Quiz States
   const [selectedPractice, setSelectedPractice] = useState<string | null>(null);
@@ -100,44 +100,11 @@ export default function LearningHub() {
         >
           📂 Winning Deck Repository
         </button>
-        <button
-          onClick={() => setActiveTab('basics')}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all shrink-0 ${
-            activeTab === 'basics' 
-              ? 'border-indigo-500 text-indigo-300 bg-indigo-500/5' 
-              : 'border-transparent text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          📖 Case Basics 101
-        </button>
       </div>
 
       {/* Tab Panels */}
       
-      {/* 1. BASICS TOPICS */}
-      {activeTab === 'basics' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {basicsTopics.map((topic, i) => (
-            <div key={i} className="glass-card p-6 rounded-2xl relative overflow-hidden">
-              <div className="absolute top-2 right-4 text-2xl font-black text-zinc-800">
-                0{i + 1}
-              </div>
-              <h3 className="text-base font-extrabold text-white mb-2">{topic.title}</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed mb-4">{topic.desc}</p>
-              
-              <div className="border-t border-white/5 pt-3 mt-3 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Strategic Insights</span>
-                {topic.insights.map((ins, idx) => (
-                  <div key={idx} className="flex items-start gap-1.5 text-xs text-indigo-300 font-medium">
-                    <CheckCircle className="w-3.5 h-3.5 text-indigo-400 mt-0.5 shrink-0" />
-                    <span>{ins}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+
 
       {/* 2. INTERACTIVE FRAMEWORKS */}
       {activeTab === 'frameworks' && (

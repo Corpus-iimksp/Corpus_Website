@@ -69,6 +69,26 @@ export default function Dashboard() {
     return matchesSearch && matchesCategory;
   });
 
+  const activeCompetitions = filteredCompetitions.filter(c => {
+    const parts = c.deadline.split('-');
+    if (parts.length !== 3) return false;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const deadlineDate = new Date(year, month, day, 23, 59, 59, 999);
+    return deadlineDate.getTime() >= new Date().getTime();
+  });
+
+  const closedCompetitions = filteredCompetitions.filter(c => {
+    const parts = c.deadline.split('-');
+    if (parts.length !== 3) return false;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const deadlineDate = new Date(year, month, day, 23, 59, 59, 999);
+    return deadlineDate.getTime() < new Date().getTime();
+  });
+
   const categories = ['All', 'Consulting', 'Marketing', 'Product', 'Analytics', 'Finance', 'Operations', 'HR'];
 
 
@@ -174,6 +194,158 @@ export default function Dashboard() {
     );
   };
 
+  const renderCard = (comp: Competition, isClosed: boolean) => {
+    return (
+      <div
+        key={comp.id}
+        onClick={() => setSelectedCompForCountdown(comp)}
+        className={`glass-card rounded-2xl p-6 flex flex-col justify-between cursor-pointer border transition-all ${
+          selectedCompForCountdown?.id === comp.id ? 'border-indigo-500 bg-indigo-950/10' : ''
+        } ${isClosed ? 'opacity-70 hover:opacity-100 hover:shadow-lg' : ''}`}
+      >
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-1.5">
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 uppercase">
+                {comp.category}
+              </span>
+              {isClosed && (
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-red-500/10 text-red-400 border border-red-500/20 uppercase">
+                  Closed
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleBookmark(comp.id);
+                }}
+                className={`p-1.5 rounded-full transition-colors ${
+                  savedCompetitions.includes(comp.id)
+                    ? 'text-amber-400 hover:text-amber-500'
+                    : 'text-zinc-600 hover:text-zinc-400'
+                }`}
+              >
+                <Star className="w-4 h-4 fill-current" />
+              </button>
+            </div>
+          </div>
+
+          <h3 className={`text-base font-extrabold text-white mb-1 leading-snug ${isClosed ? 'text-zinc-400' : ''}`}>{comp.title}</h3>
+          <span className="text-xs text-zinc-500 font-semibold mb-3 block">{comp.company}</span>
+
+          <div className="grid grid-cols-2 gap-2 text-[10px] bg-zinc-900/60 p-2.5 rounded-xl border border-white/5 mb-4">
+            <div>
+              <span className="text-zinc-500 block">PRIZE POOL</span>
+              <span className="font-bold text-emerald-400">{comp.prize_pool}</span>
+            </div>
+            <div>
+              <span className="text-zinc-500 block">DEADLINE</span>
+              <span className={`font-bold ${isClosed ? 'text-zinc-500 line-through' : 'text-red-400'}`}>{comp.deadline}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center mt-4" onClick={e => e.stopPropagation()}>
+          {isClosed ? (
+            <button
+              disabled
+              className="w-full text-center py-2 rounded-lg text-[10px] font-bold bg-zinc-900/80 text-zinc-500 border border-white/5 cursor-not-allowed flex items-center justify-center gap-1.5"
+            >
+              Closed / Registration Ended
+            </button>
+          ) : (
+            <a
+              href={comp.apply_link}
+              target="_blank"
+              rel="noreferrer"
+              className="w-full text-center py-2 rounded-lg text-[10px] font-bold bg-indigo-600/95 hover:bg-indigo-500 text-white shadow-sm transition-colors flex items-center justify-center gap-1.5"
+            >
+              Register Now <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderListTable = (list: Competition[], isClosed: boolean) => {
+    return (
+      <div className="bg-zinc-950/40 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-md">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-white/5 text-zinc-500 font-bold bg-zinc-900/40 uppercase tracking-wider">
+                <th className="p-4">Competition</th>
+                <th className="p-4">Company</th>
+                <th className="p-4">Category</th>
+                <th className="p-4">Deadline</th>
+                <th className="p-4">Prize Pool</th>
+                <th className="p-4 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {list.map(comp => (
+                <tr 
+                  key={comp.id}
+                  className={`hover:bg-zinc-900/30 transition-colors cursor-pointer ${isClosed ? 'opacity-70 hover:opacity-100' : ''}`}
+                  onClick={() => setSelectedCompForCountdown(comp)}
+                >
+                  <td className="p-4 font-bold text-zinc-200">
+                    {comp.title}
+                    {isClosed && <span className="ml-2 text-[9px] text-red-500 font-extrabold uppercase bg-red-950/30 px-1.5 py-0.5 rounded border border-red-500/20">Closed</span>}
+                  </td>
+                  <td className="p-4 text-zinc-400">{comp.company}</td>
+                  <td className="p-4">
+                    <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-bold border border-white/5">
+                      {comp.category}
+                    </span>
+                  </td>
+                  <td className={`p-4 font-semibold ${isClosed ? 'text-zinc-500 line-through' : 'text-red-400'}`}>{comp.deadline}</td>
+                  <td className="p-4 text-emerald-400 font-bold">{comp.prize_pool}</td>
+                  <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => toggleBookmark(comp.id)}
+                        className={`p-1.5 rounded-lg border transition-colors ${
+                          savedCompetitions.includes(comp.id)
+                            ? 'bg-amber-500/10 border-amber-500/25 text-amber-400'
+                            : 'bg-zinc-900 border-white/5 text-zinc-500 hover:text-zinc-300'
+                        }`}
+                        title="Bookmark"
+                      >
+                        <Star className="w-3.5 h-3.5 fill-current" />
+                      </button>
+
+                      {isClosed ? (
+                        <button
+                          disabled
+                          className="px-2 py-1 rounded bg-zinc-900 text-zinc-500 text-[10px] font-bold border border-white/5 cursor-not-allowed"
+                        >
+                          Closed
+                        </button>
+                      ) : (
+                        <a
+                          href={comp.apply_link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/20"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="relative min-h-screen bg-transparent text-zinc-100 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       
@@ -261,126 +433,74 @@ export default function Dashboard() {
           ) : viewMode === 'calendar' ? (
             renderCalendar()
           ) : viewMode === 'list' ? (
-            /* LIST VIEW */
-            <div className="bg-zinc-950/40 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-md">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-white/5 text-zinc-500 font-bold bg-zinc-900/40 uppercase tracking-wider">
-                      <th className="p-4">Competition</th>
-                      <th className="p-4">Company</th>
-                      <th className="p-4">Category</th>
-                      <th className="p-4">Deadline</th>
-                      <th className="p-4">Prize Pool</th>
-                      <th className="p-4 text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {filteredCompetitions.map(comp => (
-                      <tr 
-                        key={comp.id}
-                        className="hover:bg-zinc-900/30 transition-colors cursor-pointer"
-                        onClick={() => setSelectedCompForCountdown(comp)}
-                      >
-                        <td className="p-4 font-bold text-zinc-200">{comp.title}</td>
-                        <td className="p-4 text-zinc-400">{comp.company}</td>
-                        <td className="p-4">
-                          <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-bold border border-white/5">
-                            {comp.category}
-                          </span>
-                        </td>
-                        <td className="p-4 text-red-400 font-semibold">{comp.deadline}</td>
-                        <td className="p-4 text-emerald-400 font-bold">{comp.prize_pool}</td>
-                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => toggleBookmark(comp.id)}
-                              className={`p-1.5 rounded-lg border transition-colors ${
-                                savedCompetitions.includes(comp.id)
-                                  ? 'bg-amber-500/10 border-amber-500/25 text-amber-400'
-                                  : 'bg-zinc-900 border-white/5 text-zinc-500 hover:text-zinc-300'
-                              }`}
-                              title="Bookmark"
-                            >
-                              <Star className="w-3.5 h-3.5 fill-current" />
-                            </button>
+            /* LIST VIEW WITH ACTIVE & CLOSED SECTIONS */
+            <div className="space-y-8">
+              {/* Active Section */}
+              {activeCompetitions.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <h2 className="text-xs font-black uppercase tracking-wider text-zinc-200">
+                      Active Opportunities ({activeCompetitions.length})
+                    </h2>
+                  </div>
+                  {renderListTable(activeCompetitions, false)}
+                </div>
+              ) : (
+                <div className="glass-panel text-center py-8 rounded-2xl border-white/5 text-zinc-500 text-xs">
+                  No active opportunities found.
+                </div>
+              )}
 
-                            <a
-                              href={comp.apply_link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/20"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </a>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {/* Closed Section */}
+              {closedCompetitions.length > 0 && (
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-zinc-500"></span>
+                    <h2 className="text-xs font-black uppercase tracking-wider text-zinc-400">
+                      Closed Opportunities ({closedCompetitions.length})
+                    </h2>
+                  </div>
+                  {renderListTable(closedCompetitions, true)}
+                </div>
+              )}
             </div>
           ) : (
-            /* CARD VIEW */
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredCompetitions.map(comp => (
-                <div
-                  key={comp.id}
-                  onClick={() => setSelectedCompForCountdown(comp)}
-                  className={`glass-card rounded-2xl p-6 flex flex-col justify-between cursor-pointer border ${
-                    selectedCompForCountdown?.id === comp.id ? 'border-indigo-500 bg-indigo-950/10' : ''
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 uppercase">
-                        {comp.category}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleBookmark(comp.id);
-                          }}
-                          className={`p-1.5 rounded-full transition-colors ${
-                            savedCompetitions.includes(comp.id)
-                              ? 'text-amber-400 hover:text-amber-500'
-                              : 'text-zinc-600 hover:text-zinc-400'
-                          }`}
-                        >
-                          <Star className="w-4 h-4 fill-current" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <h3 className="text-base font-extrabold text-white mb-1 leading-snug">{comp.title}</h3>
-                    <span className="text-xs text-zinc-500 font-semibold mb-3 block">{comp.company}</span>
-
-                    <div className="grid grid-cols-2 gap-2 text-[10px] bg-zinc-900/60 p-2.5 rounded-xl border border-white/5 mb-4">
-                      <div>
-                        <span className="text-zinc-500 block">PRIZE POOL</span>
-                        <span className="font-bold text-emerald-400">{comp.prize_pool}</span>
-                      </div>
-                      <div>
-                        <span className="text-zinc-500 block">DEADLINE</span>
-                        <span className="font-bold text-red-400">{comp.deadline}</span>
-                      </div>
-                    </div>
+            /* CARD VIEW WITH ACTIVE & CLOSED SECTIONS */
+            <div className="space-y-8">
+              {/* Active Section */}
+              {activeCompetitions.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <h2 className="text-xs font-black uppercase tracking-wider text-zinc-200">
+                      Active Opportunities ({activeCompetitions.length})
+                    </h2>
                   </div>
-
-                  <div className="flex items-center mt-4" onClick={e => e.stopPropagation()}>
-                    <a
-                      href={comp.apply_link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="w-full text-center py-2 rounded-lg text-[10px] font-bold bg-indigo-600/95 hover:bg-indigo-500 text-white shadow-sm transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      Register Now <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {activeCompetitions.map(comp => renderCard(comp, false))}
                   </div>
                 </div>
-              ))}
+              ) : (
+                <div className="glass-panel text-center py-8 rounded-2xl border-white/5 text-zinc-500 text-xs">
+                  No active opportunities found.
+                </div>
+              )}
+
+              {/* Closed Section */}
+              {closedCompetitions.length > 0 && (
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-zinc-500"></span>
+                    <h2 className="text-xs font-black uppercase tracking-wider text-zinc-400">
+                      Closed Opportunities ({closedCompetitions.length})
+                    </h2>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {closedCompetitions.map(comp => renderCard(comp, true))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

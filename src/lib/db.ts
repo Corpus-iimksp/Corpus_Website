@@ -106,12 +106,7 @@ export interface Framework {
   gradient: string;
 }
 
-export interface BasicsTopic {
-  id: string;
-  title: string;
-  desc: string;
-  insights: string[];
-}
+
 
 export interface QuizQuestion {
   q: string;
@@ -177,32 +172,7 @@ const DEFAULT_FRAMEWORKS: Framework[] = [
   }
 ];
 
-const DEFAULT_BASICS_TOPICS: BasicsTopic[] = [
-  {
-    id: "topic-1",
-    title: "What is a Case Competition?",
-    desc: "A business case competition is a mock challenge where students formulate corporate solutions to complex problems under a tight deadline, pitching to panel judges.",
-    insights: ["Always start with a clear problem definition.", "Focus on financial viability and real-world execution."]
-  },
-  {
-    id: "topic-2",
-    title: "Competition Lifecycle",
-    desc: "Typical steps: Case Release -> 48-hour Prep -> Slide Deck upload -> Campus Heats -> Regional Semis -> National Grand Finale.",
-    insights: ["Dedicate the first 20% of your time to structuring, not drafting.", "Rehearse Q&A thoroughly."]
-  },
-  {
-    id: "topic-3",
-    title: "Team Formation",
-    desc: "Ideal team size is 3-4. Mix complementary skills: 1 Strategy Lead, 1 Financial Modeler, 1 GTM/Marketing Specialist, and 1 Visual Design master.",
-    insights: ["A cohesive team of different backgrounds performs 3x better.", "Assign roles early."]
-  },
-  {
-    id: "topic-4",
-    title: "Presentation Design",
-    desc: "Slide visuals dictate credibility. Use standard consulting palettes, executive summary banners on every slide, and 'So What?' message titles.",
-    insights: ["Limit text per slide; use structure grids.", "Ensure charts have clean sources and highlights."]
-  }
-];
+
 
 const DEFAULT_QUIZZES: Quiz[] = [
   {
@@ -876,29 +846,7 @@ class LocalDb {
     return filtered.length !== list.length;
   }
 
-  // --- Case Basics 101 Topics ---
-  getBasicsTopics(): BasicsTopic[] {
-    return this.getStorage<BasicsTopic[]>('learning_basics', DEFAULT_BASICS_TOPICS);
-  }
 
-  upsertBasicsTopic(topic: BasicsTopic): BasicsTopic {
-    const list = this.getBasicsTopics();
-    const idx = list.findIndex(t => t.id === topic.id);
-    if (idx >= 0) {
-      list[idx] = topic;
-    } else {
-      list.push(topic);
-    }
-    this.setStorage('learning_basics', list);
-    return topic;
-  }
-
-  deleteBasicsTopic(id: string): boolean {
-    const list = this.getBasicsTopics();
-    const filtered = list.filter(t => t.id !== id);
-    this.setStorage('learning_basics', filtered);
-    return filtered.length !== list.length;
-  }
 
   // --- Mock Case Practice Quizzes ---
   getQuizzes(): Quiz[] {

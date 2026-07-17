@@ -21,34 +21,6 @@ import {
   Lock
 } from 'lucide-react';
 
-interface TeamListing {
-  id: string;
-  teamName: string;
-  competition: string;
-  lookingFor: 'Finance' | 'Marketing' | 'Analytics' | 'Product' | 'Consulting';
-  description: string;
-  contactEmail: string;
-}
-
-const DEFAULT_TEAM_LISTINGS: TeamListing[] = [
-  {
-    id: 'team-1',
-    teamName: 'The Bainiacs',
-    competition: 'McKinsey Case Excellence',
-    lookingFor: 'Finance',
-    description: 'Preparing the financial models and cost branches for McKinsey case. Need someone who can build a clean Excel projection model.',
-    contactEmail: 'bainiacs.pgp26@iimkashipur.ac.in'
-  },
-  {
-    id: 'team-2',
-    teamName: 'Marketing Mavericks',
-    competition: 'L\'Oréal Brandstorm 2026',
-    lookingFor: 'Product',
-    description: 'Designing seaweed packaging water bottle. Need a PM-minded teammate to flesh out product requirements and wireframes.',
-    contactEmail: 'mavericks.pgp25@iimkashipur.ac.in'
-  }
-];
-
 export default function StudentPortal() {
   const { 
     currentStudent, 
@@ -62,7 +34,7 @@ export default function StudentPortal() {
     currentRole
   } = useStore();
 
-  const [activePortalTab, setActivePortalTab] = useState<'dashboard' | 'profile' | 'team'>('dashboard');
+  const [activePortalTab, setActivePortalTab] = useState<'dashboard' | 'profile'>('dashboard');
   const [mounted, setMounted] = useState(false);
 
   // Competition stages mapping
@@ -90,24 +62,16 @@ export default function StudentPortal() {
   const [profileShortlists, setProfileShortlists] = useState(currentStudent?.shortlists || 0);
   const [profileParticipations, setProfileParticipations] = useState(currentStudent?.participations || 0);
 
-  // Team Finder States
-  const [teamListings, setTeamListings] = useState<TeamListing[]>(DEFAULT_TEAM_LISTINGS);
-  const [newTeamName, setNewTeamName] = useState('');
-  const [newTeamComp, setNewTeamComp] = useState('');
-  const [newTeamLooking, setNewTeamLooking] = useState<'Finance' | 'Marketing' | 'Analytics' | 'Product' | 'Consulting'>('Finance');
-  const [newTeamDesc, setNewTeamDesc] = useState('');
-  const [teamSearchQuery, setTeamSearchQuery] = useState('');
-
   // Sync profile form when student store state is updated
   useEffect(() => {
     if (currentStudent) {
-      setProfileName(currentStudent.name);
-      setProfileCollege(currentStudent.college);
-      setProfileProgram(currentStudent.program);
-      setProfileYear(currentStudent.year);
-      setProfileLinkedin(currentStudent.linkedin);
-      setProfileInterests(currentStudent.interests);
-      setResumeName(currentStudent.resume);
+      setProfileName(currentStudent.name || '');
+      setProfileCollege(currentStudent.college || 'IIM Kashipur');
+      setProfileProgram(currentStudent.program || 'PGP MBA');
+      setProfileYear(currentStudent.year || '1st Year');
+      setProfileLinkedin(currentStudent.linkedin || '');
+      setProfileInterests(currentStudent.interests || []);
+      setResumeName(currentStudent.resume || '');
       setProfileWins(currentStudent.wins || 0);
       setProfileShortlists(currentStudent.shortlists || 0);
       setProfileParticipations(currentStudent.participations || 0);
@@ -203,34 +167,7 @@ export default function StudentPortal() {
 
 
 
-  // Team Finder Listing creation
-  const handlePostTeam = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTeamName || !newTeamComp || !newTeamDesc) return;
 
-    const newListing: TeamListing = {
-      id: `team-${Date.now()}`,
-      teamName: newTeamName,
-      competition: newTeamComp,
-      lookingFor: newTeamLooking,
-      description: newTeamDesc,
-      contactEmail: currentStudent?.email || 'student@iimkashipur.ac.in'
-    };
-
-    setTeamListings(prev => [newListing, ...prev]);
-    setNewTeamName('');
-    setNewTeamComp('');
-    setNewTeamDesc('');
-
-    addSystemNotification({
-      id: `team-post-${Date.now()}`,
-      title: '👥 Teammate Request Posted',
-      message: `Your listing for "${newTeamComp}" is now live on the board.`,
-      type: 'system',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
-    alert('Teammate post published successfully!');
-  };
 
 
 
@@ -291,7 +228,7 @@ export default function StudentPortal() {
           👤 Student Portal
         </h1>
         <p className="text-xs text-zinc-500 mt-1">
-          Monitor your preparation stats, update interest niches, and search for teammates.
+          Monitor your preparation stats and update interest niches.
         </p>
       </div>
 
@@ -306,17 +243,6 @@ export default function StudentPortal() {
           }`}
         >
           📊 Preparation Dashboard
-        </button>
-
-        <button
-          onClick={() => setActivePortalTab('team')}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all shrink-0 ${
-            activePortalTab === 'team' 
-              ? 'border-indigo-500 text-indigo-300 bg-indigo-500/5' 
-              : 'border-transparent text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          👥 Team Finder Board
         </button>
 
         <button
@@ -585,131 +511,7 @@ export default function StudentPortal() {
                   })
                 )}
               </div>
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-
-
-      {/* 3. TEAM FINDER BOARD */}
-      {activePortalTab === 'team' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Post teammate request Form */}
-          <div>
-            <div className="glass-panel p-6 rounded-2xl border-white/5">
-              <h3 className="text-sm font-black text-zinc-200 uppercase tracking-wider mb-4">Request Teammates</h3>
-              
-              <form onSubmit={handlePostTeam} className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Your Team Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={newTeamName}
-                    onChange={(e) => setNewTeamName(e.target.value)}
-                    placeholder="E.g., Bain Titans"
-                    className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Case Competition Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={newTeamComp}
-                    onChange={(e) => setNewTeamComp(e.target.value)}
-                    placeholder="E.g., McKinsey Strategy Cup"
-                    className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Expertise Needed</label>
-                  <select
-                    value={newTeamLooking}
-                    onChange={(e) => setNewTeamLooking(e.target.value as any)}
-                    className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500/50"
-                  >
-                    <option value="Finance">Finance / Valuations</option>
-                    <option value="Marketing">Marketing / GTM</option>
-                    <option value="Product">Product / App Specs</option>
-                    <option value="Analytics">Analytics / Datasets</option>
-                    <option value="Consulting">Consulting / Slides</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Description / Project Scope</label>
-                  <textarea
-                    required
-                    rows={4}
-                    value={newTeamDesc}
-                    onChange={(e) => setNewTeamDesc(e.target.value)}
-                    placeholder="Briefly describe what your solution is and what tasks the new partner will address..."
-                    className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500/50 resize-none"
-                  ></textarea>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-2 bg-indigo-500 hover:bg-indigo-600 rounded-lg text-xs font-bold text-white transition-colors"
-                >
-                  Publish Team Request
-                </button>
-              </form>
-            </div>
-          </div>
-
-          {/* Teammate request Feed */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center gap-3 bg-zinc-900/60 p-3 rounded-xl border border-white/5 mb-4">
-              <Search className="w-4 h-4 text-zinc-500 shrink-0" />
-              <input
-                type="text"
-                placeholder="Search case challenges or skill needed..."
-                value={teamSearchQuery}
-                onChange={(e) => setTeamSearchQuery(e.target.value)}
-                className="w-full bg-transparent text-xs text-zinc-200 focus:outline-none"
-              />
-            </div>
-
-            <div className="space-y-4">
-              {teamListings
-                .filter(listing => 
-                  listing.competition.toLowerCase().includes(teamSearchQuery.toLowerCase()) ||
-                  listing.lookingFor.toLowerCase().includes(teamSearchQuery.toLowerCase())
-                )
-                .map(listing => (
-                  <div key={listing.id} className="glass-card p-5 rounded-2xl border border-white/5 relative">
-                    <div className="flex items-start justify-between gap-2 border-b border-white/5 pb-3 mb-3">
-                      <div>
-                        <h4 className="font-extrabold text-sm text-zinc-200">{listing.teamName}</h4>
-                        <span className="text-xs text-zinc-500">Entering: {listing.competition}</span>
-                      </div>
-                      
-                      <span className="px-2.5 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] font-bold uppercase shrink-0">
-                        Needs: {listing.lookingFor}
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-zinc-400 leading-relaxed mb-4">
-                      {listing.description}
-                    </p>
-
-                    <div className="flex justify-between items-center text-[10px] text-zinc-500">
-                      <span>Posted by verified student portal member</span>
-                      <a
-                        href={`mailto:${listing.contactEmail}`}
-                        className="text-indigo-400 font-bold hover:underline"
-                      >
-                        Contact: {listing.contactEmail}
-                      </a>
-                    </div>
-                  </div>
-                ))}
-            </div>
+                 </div>
           </div>
 
         </div>

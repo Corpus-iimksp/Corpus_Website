@@ -56,10 +56,6 @@ export default function AdminDashboard() {
     addFramework,
     updateFramework,
     deleteFramework,
-    basicsTopics,
-    addBasicsTopic,
-    updateBasicsTopic,
-    deleteBasicsTopic,
     quizzes,
     addQuiz,
     updateQuiz,
@@ -75,7 +71,7 @@ export default function AdminDashboard() {
   const [editingMentorId, setEditingMentorId] = useState<string | null>(null);
   const [editingDeckId, setEditingDeckId] = useState<string | null>(null);
 
-  const [activeHubTab, setActiveHubTab] = useState<'decks' | 'frameworks' | 'basics' | 'quizzes'>('decks');
+  const [activeHubTab, setActiveHubTab] = useState<'decks' | 'frameworks' | 'quizzes'>('decks');
 
   // Framework states
   const [editingFrameworkId, setEditingFrameworkId] = useState<string | null>(null);
@@ -84,12 +80,6 @@ export default function AdminDashboard() {
   const [fwFront, setFwFront] = useState('');
   const [fwBack, setFwBack] = useState('');
   const [fwGradient, setFwGradient] = useState('from-indigo-600 to-purple-600');
-
-  // Basics states
-  const [editingBasicsId, setEditingBasicsId] = useState<string | null>(null);
-  const [basicsTitle, setBasicsTitle] = useState('');
-  const [basicsDesc, setBasicsDesc] = useState('');
-  const [basicsInsights, setBasicsInsights] = useState('');
 
   // Quiz states
   const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
@@ -340,37 +330,7 @@ export default function AdminDashboard() {
     alert(editingFrameworkId ? 'Success: Framework updated!' : 'Success: Framework published!');
   };
 
-  // Handle Case Basics creation & edit
-  const handleCreateBasicsTopic = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!basicsTitle || !basicsDesc) return;
 
-    const insightsList = basicsInsights
-      .split('\n')
-      .map(s => s.trim())
-      .filter(Boolean);
-
-    const topicObj = {
-      id: editingBasicsId || `topic-${Date.now()}`,
-      title: basicsTitle,
-      desc: basicsDesc,
-      insights: insightsList
-    };
-
-    if (editingBasicsId) {
-      updateBasicsTopic(topicObj);
-    } else {
-      addBasicsTopic(topicObj);
-    }
-
-    // Reset Form
-    setBasicsTitle('');
-    setBasicsDesc('');
-    setBasicsInsights('');
-    setEditingBasicsId(null);
-
-    alert(editingBasicsId ? 'Success: Basics Topic updated!' : 'Success: Basics Topic published!');
-  };
 
   // Handle Quiz creation & edit
   const handleCreateQuiz = (e: React.FormEvent) => {
@@ -597,30 +557,29 @@ export default function AdminDashboard() {
               <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Active Mentors</span>
               <span className="text-3xl font-black text-amber-400 mt-1 block">{mentors.length}</span>
             </div>
-            <div className="glass-panel p-5 rounded-2xl border-white/5">
-              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Opportunities</span>
-              <span className="text-3xl font-black text-amber-400 mt-1 block">{competitions.length}</span>
-            </div>
-            <div className="glass-panel p-5 rounded-2xl border-white/5">
-              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Bookings Met</span>
-              <span className="text-3xl font-black text-amber-400 mt-1 block">{bookings.length}</span>
-            </div>
+            {/* Quick Metrics */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+              <div className="glass-panel p-5 rounded-2xl border-white/5">
+                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Opportunities</span>
+                <span className="text-3xl font-black text-amber-400 mt-1 block">{competitions.length}</span>
+              </div>
+              <div className="glass-panel p-5 rounded-2xl border-white/5">
+                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Bookings Met</span>
+                <span className="text-3xl font-black text-amber-400 mt-1 block">{bookings.length}</span>
+              </div>
 
-            <div className="glass-panel p-5 rounded-2xl border-white/5">
-              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Slide Decks</span>
-              <span className="text-3xl font-black text-indigo-400 mt-1 block">{winningDecks.length}</span>
-            </div>
-            <div className="glass-panel p-5 rounded-2xl border-white/5">
-              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Frameworks</span>
-              <span className="text-3xl font-black text-indigo-400 mt-1 block">{frameworks.length}</span>
-            </div>
-            <div className="glass-panel p-5 rounded-2xl border-white/5">
-              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Case Basics</span>
-              <span className="text-3xl font-black text-indigo-400 mt-1 block">{basicsTopics.length}</span>
-            </div>
-            <div className="glass-panel p-5 rounded-2xl border-white/5">
-              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Practice Quizzes</span>
-              <span className="text-3xl font-black text-indigo-400 mt-1 block">{quizzes.length}</span>
+              <div className="glass-panel p-5 rounded-2xl border-white/5">
+                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Slide Decks</span>
+                <span className="text-3xl font-black text-indigo-400 mt-1 block">{winningDecks.length}</span>
+              </div>
+              <div className="glass-panel p-5 rounded-2xl border-white/5">
+                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Frameworks</span>
+                <span className="text-3xl font-black text-indigo-400 mt-1 block">{frameworks.length}</span>
+              </div>
+              <div className="glass-panel p-5 rounded-2xl border-white/5">
+                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Practice Quizzes</span>
+                <span className="text-3xl font-black text-indigo-400 mt-1 block">{quizzes.length}</span>
+              </div>
             </div>
           </div>
 
@@ -1383,12 +1342,6 @@ export default function AdminDashboard() {
               🗂️ Interactive Frameworks ({frameworks.length})
             </button>
             <button
-              onClick={() => setActiveHubTab('basics')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${activeHubTab === 'basics' ? 'bg-indigo-950 text-indigo-400 border border-indigo-500/20' : 'text-zinc-500 hover:text-zinc-300'}`}
-            >
-              📖 Case Basics 101 ({basicsTopics.length})
-            </button>
-            <button
               onClick={() => setActiveHubTab('quizzes')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${activeHubTab === 'quizzes' ? 'bg-indigo-950 text-indigo-400 border border-indigo-500/20' : 'text-zinc-500 hover:text-zinc-300'}`}
             >
@@ -1781,137 +1734,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* SUB-PANEL 3: BASICS */}
-          {activeHubTab === 'basics' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-xs">
-              
-              {/* Form */}
-              <div>
-                <div className="glass-panel p-6 rounded-2xl border-white/5">
-                  <h3 className="text-sm font-black text-zinc-200 uppercase tracking-wider mb-4">
-                    {editingBasicsId ? 'Edit Topic' : 'Add Case Topic'}
-                  </h3>
-                  
-                  <form onSubmit={handleCreateBasicsTopic} className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Topic Title</label>
-                      <input
-                        type="text"
-                        required
-                        value={basicsTitle}
-                        onChange={(e) => setBasicsTitle(e.target.value)}
-                        placeholder="E.g., Team Formation"
-                        className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-200 focus:outline-none"
-                      />
-                    </div>
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Topic Summary Description</label>
-                      <textarea
-                        required
-                        rows={3}
-                        value={basicsDesc}
-                        onChange={(e) => setBasicsDesc(e.target.value)}
-                        placeholder="E.g., An ideal team size is 3-4 combining complementary skillsets..."
-                        className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-200 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Strategic Insights (One item per line)</label>
-                      <textarea
-                        required
-                        rows={4}
-                        value={basicsInsights}
-                        onChange={(e) => setBasicsInsights(e.target.value)}
-                        placeholder="E.g., Assign roles early.&#10;Incorporate graphic elements."
-                        className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-200 focus:outline-none"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 rounded-xl text-xs font-bold text-black transition-colors"
-                    >
-                      {editingBasicsId ? 'Update Topic' : 'Publish Topic'}
-                    </button>
-
-                    {editingBasicsId && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setBasicsTitle('');
-                          setBasicsDesc('');
-                          setBasicsInsights('');
-                          setEditingBasicsId(null);
-                        }}
-                        className="w-full mt-2 py-2 bg-zinc-900 border border-white/10 hover:bg-zinc-800 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 transition-colors"
-                      >
-                        Cancel Edit
-                      </button>
-                    )}
-                  </form>
-                </div>
-              </div>
-
-              {/* List */}
-              <div className="lg:col-span-2 space-y-4">
-                <h3 className="text-sm font-black text-zinc-200 uppercase tracking-wider mb-2">Basics Topics ({basicsTopics.length})</h3>
-                <div className="bg-zinc-950/40 border border-white/5 rounded-2xl overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="border-b border-white/5 text-zinc-500 font-bold bg-zinc-900/40">
-                          <th className="p-4">Basics Topic Info</th>
-                          <th className="p-4">Insights Count</th>
-                          <th className="p-4 text-center">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {basicsTopics.map((topic) => (
-                          <tr key={topic.id} className="hover:bg-zinc-900/10">
-                            <td className="p-4 font-bold text-zinc-200">
-                              {topic.title}
-                              <span className="block text-[10px] text-zinc-500 font-medium">{topic.desc.substring(0, 55)}...</span>
-                            </td>
-                            <td className="p-4 text-indigo-400 font-bold">{(topic.insights || []).length} insights</td>
-                            <td className="p-4 text-center">
-                              <button
-                                onClick={() => {
-                                  setEditingBasicsId(topic.id);
-                                  setBasicsTitle(topic.title);
-                                  setBasicsDesc(topic.desc);
-                                  setBasicsInsights((topic.insights || []).join('\n'));
-                                }}
-                                className="p-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 rounded-lg mr-1.5"
-                                title="Edit Topic"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (confirm(`Are you sure you want to delete "${topic.title}"?`)) {
-                                    deleteBasicsTopic(topic.id);
-                                  }
-                                }}
-                                className="p-1.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-lg"
-                                title="Delete Topic"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          )}
 
           {/* SUB-PANEL 4: QUIZZES */}
           {activeHubTab === 'quizzes' && (
