@@ -15,12 +15,24 @@ import {
   Sparkles,
   Search,
   ThumbsUp,
-  BrainCircuit
+  BrainCircuit,
+  ExternalLink
 } from 'lucide-react';
 
 export default function LearningHub() {
   const { addSystemNotification, winningDecks, frameworks, quizzes, updateWinningDeck } = useStore();
   const [activeTab, setActiveTab] = useState<'frameworks' | 'decks' | 'practice'>('frameworks');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+
+  // Dynamic unique tags across all winning decks
+  const allTags = Array.from(
+    new Set((winningDecks || []).flatMap((deck) => deck.tags || []))
+  ).sort();
+
+  // Filtered winning decks based on selectedTag
+  const filteredDecks = selectedTag
+    ? (winningDecks || []).filter((deck) => deck.tags?.includes(selectedTag))
+    : (winningDecks || []);
   
   // Practice Quiz States
   const [selectedPractice, setSelectedPractice] = useState<string | null>(null);
@@ -154,50 +166,114 @@ export default function LearningHub() {
 
       {/* 3. WINNING DECK REPOSITORY */}
       {activeTab === 'decks' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {winningDecks.map(deck => (
-            <div key={deck.id} className="glass-card rounded-2xl overflow-hidden flex flex-col justify-between border border-white/5">
-              <div>
-                <div className="relative h-40 w-full bg-zinc-900 border-b border-white/5">
-                  <img
-                    src={deck.previewImage}
-                    alt={deck.title}
-                    className="w-full h-full object-cover opacity-60 hover:opacity-85 transition-opacity"
-                  />
-                  <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded text-[9px] font-bold bg-indigo-500 text-white">
-                    {deck.year} Winner
-                  </div>
-                </div>
-
-                <div className="p-5">
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">
-                    {deck.competition}
-                  </span>
-                  <h3 className="font-extrabold text-sm text-zinc-200 leading-snug mb-2">
-                    {deck.title}
-                  </h3>
-                  <span className="text-xs text-zinc-400 font-medium">Team: {deck.teamName}</span>
-
-                  <div className="flex flex-wrap gap-1 mt-4">
-                    {deck.tags?.map((tag: string, i: number) => (
-                      <span key={i} className="px-2 py-0.5 rounded bg-zinc-900 text-[10px] font-medium border border-white/5 text-zinc-300">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-5 border-t border-white/5 bg-zinc-950/40 flex items-center justify-end">
+        <div className="space-y-6">
+          {/* Tag Filters */}
+          {allTags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mb-2 bg-zinc-950/40 p-4 border border-white/5 rounded-2xl backdrop-blur-md">
+              <span className="text-xs text-zinc-400 font-bold uppercase mr-2 flex items-center gap-1.5">
+                <Search className="w-3.5 h-3.5 text-indigo-400" /> Filter by Tag:
+              </span>
+              <button
+                onClick={() => setSelectedTag(null)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                  selectedTag === null
+                    ? 'bg-indigo-500 border-indigo-500 text-white shadow-md shadow-indigo-500/10'
+                    : 'bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200 hover:border-white/10'
+                }`}
+              >
+                All Decks
+              </button>
+              {allTags.map((tag) => (
                 <button
-                  onClick={() => handleDownload(deck)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-500 hover:bg-indigo-600 text-white flex items-center gap-1 transition-colors"
+                  key={tag}
+                  onClick={() => setSelectedTag(tag)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                    selectedTag === tag
+                      ? 'bg-indigo-500 border-indigo-500 text-white shadow-md shadow-indigo-500/10'
+                      : 'bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200 hover:border-white/10'
+                  }`}
                 >
-                  <Download className="w-3.5 h-3.5" /> Download PPT
+                  #{tag}
                 </button>
-              </div>
+              ))}
             </div>
-          ))}
+          )}
+
+          {filteredDecks.length === 0 ? (
+            <div className="text-center py-12 text-zinc-500 border border-dashed border-white/5 rounded-2xl">
+              No winning decks found matching the selected tag filter.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {filteredDecks.map(deck => (
+                <div key={deck.id} className="glass-card rounded-2xl overflow-hidden flex flex-col justify-between border border-white/5">
+                  <div>
+                    <div className="relative h-40 w-full bg-zinc-900 border-b border-white/5">
+                      <img
+                        src={deck.previewImage}
+                        alt={deck.title}
+                        className="w-full h-full object-cover opacity-60 hover:opacity-85 transition-opacity"
+                      />
+                    </div>
+
+                    <div className="p-5">
+                      <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">
+                        {deck.competition}
+                      </span>
+                      <h3 className="font-extrabold text-sm text-zinc-200 leading-snug mb-2">
+                        {deck.title}
+                      </h3>
+                      <span className="text-xs text-zinc-400 font-medium">Team: {deck.teamName}</span>
+
+                      <div className="flex flex-wrap gap-1 mt-4">
+                        {deck.tags?.map((tag: string, i: number) => (
+                          <span key={i} className="px-2 py-0.5 rounded bg-zinc-900 text-[10px] font-medium border border-white/5 text-zinc-300">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 border-t border-white/5 bg-zinc-950/40 flex flex-col gap-2">
+                    <a
+                      href={deck.fileUrl && deck.fileUrl !== '#' ? deck.fileUrl : undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`px-3 py-2 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-1.5 transition-colors text-center ${
+                        deck.fileUrl && deck.fileUrl !== '#' 
+                          ? 'bg-indigo-500 hover:bg-indigo-600' 
+                          : 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-white/5'
+                      }`}
+                      onClick={(e) => {
+                        if (!deck.fileUrl || deck.fileUrl === '#') {
+                          e.preventDefault();
+                          alert('No custom PPT link has been filled for this deck yet.');
+                        }
+                      }}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" /> Open PPT Link
+                    </a>
+                    {deck.fileUrl && deck.fileUrl !== '#' ? (
+                      <a
+                        href={deck.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-zinc-500 hover:text-indigo-400 transition-colors underline truncate max-w-full block text-center"
+                        title={deck.fileUrl}
+                      >
+                        {deck.fileUrl}
+                      </a>
+                    ) : (
+                      <div className="text-[10px] text-zinc-500 text-center italic">
+                        No custom PPT link filled
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
