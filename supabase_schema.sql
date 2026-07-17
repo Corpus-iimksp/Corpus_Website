@@ -73,8 +73,7 @@ CREATE TABLE IF NOT EXISTS public.winning_decks (
   teamName TEXT NOT NULL,
   tags TEXT[],
   fileUrl TEXT NOT NULL,
-  previewImage TEXT,
-  downloadsCount INTEGER DEFAULT 0
+  previewImage TEXT
 );
 
 -- 6. Create Frameworks Table

@@ -29,16 +29,7 @@ export default function LearningHub() {
   const [practiceScore, setPracticeScore] = useState<number | null>(null);
   const [practiceCompleted, setPracticeCompleted] = useState<boolean>(false);
 
-  const handleDownload = async (deck: WinningDeck) => {
-    const updatedDeck = {
-      ...deck,
-      downloadsCount: (deck.downloadsCount || 0) + 1
-    };
-    try {
-      await updateWinningDeck(updatedDeck);
-    } catch (e) {
-      console.error("Failed to update download count in Supabase:", e);
-    }
+  const handleDownload = (deck: WinningDeck) => {
     addSystemNotification({
       id: `download-${Date.now()}`,
       title: '📥 Deck Downloaded',
@@ -197,11 +188,7 @@ export default function LearningHub() {
                 </div>
               </div>
 
-              <div className="p-5 border-t border-white/5 bg-zinc-950/40 flex items-center justify-between">
-                <span className="text-xs text-zinc-500 font-semibold">
-                  {deck.downloadsCount || 0} downloads
-                </span>
-                
+              <div className="p-5 border-t border-white/5 bg-zinc-950/40 flex items-center justify-end">
                 <button
                   onClick={() => handleDownload(deck)}
                   className="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-500 hover:bg-indigo-600 text-white flex items-center gap-1 transition-colors"

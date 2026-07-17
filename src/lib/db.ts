@@ -94,7 +94,6 @@ export interface WinningDeck {
   tags: string[];
   fileUrl: string;
   previewImage: string;
-  downloadsCount: number;
 }
 
 export interface Framework {

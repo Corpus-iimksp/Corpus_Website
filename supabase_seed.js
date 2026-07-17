@@ -193,8 +193,7 @@ const DEFAULT_DECKS = [
     teamName: 'Team Mavericks',
     tags: ['Marketing', 'GTM', 'Sustainability'],
     fileUrl: '#',
-    previewImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=300',
-    downloadsCount: 142
+    previewImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=300'
   },
   {
     id: 'deck-2',
@@ -204,8 +203,7 @@ const DEFAULT_DECKS = [
     teamName: 'The Strategy Hub',
     tags: ['Consulting', 'Growth Strategy', 'M&A'],
     fileUrl: '#',
-    previewImage: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&q=80&w=300',
-    downloadsCount: 98
+    previewImage: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&q=80&w=300'
   },
   {
     id: 'deck-3',
@@ -215,8 +213,7 @@ const DEFAULT_DECKS = [
     teamName: 'Genesis',
     tags: ['Product Launch', 'Pricing Strategy', 'Operations'],
     fileUrl: '#',
-    previewImage: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&q=80&w=300',
-    downloadsCount: 215
+    previewImage: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&q=80&w=300'
   }
 ];
 

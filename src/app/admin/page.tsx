@@ -276,8 +276,7 @@ export default function AdminDashboard() {
       teamName: deckTeamName,
       tags: tagsList,
       fileUrl: deckFileUrl || 'https://google.com',
-      previewImage: deckPreviewImage || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=600',
-      downloadsCount: 0
+      previewImage: deckPreviewImage || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=600'
     };
 
     if (editingDeckId) {
@@ -1532,7 +1531,6 @@ export default function AdminDashboard() {
                         <tr className="border-b border-white/5 text-zinc-500 font-bold bg-zinc-900/40">
                           <th className="p-4">Presentation Info</th>
                           <th className="p-4">Team</th>
-                          <th className="p-4">Downloads</th>
                           <th className="p-4 text-center">Action</th>
                         </tr>
                       </thead>
@@ -1544,7 +1542,6 @@ export default function AdminDashboard() {
                               <span className="block text-[10px] text-zinc-500 font-medium">{deck.competition} ({deck.year})</span>
                             </td>
                             <td className="p-4 text-zinc-400">{deck.teamName}</td>
-                            <td className="p-4 text-indigo-400 font-bold">{deck.downloadsCount || 0}</td>
                             <td className="p-4 text-center">
                               <button
                                 onClick={() => {
