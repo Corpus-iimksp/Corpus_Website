@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useStore, UserRole } from '@/lib/store';
+import { useStore, UserRole, checkProfileIncomplete } from '@/lib/store';
 import { Bell, User, Settings, Check, ShieldAlert, Award, Compass, BookOpen, UserCheck, Shield, LogIn, LogOut, Mail, Lock } from 'lucide-react';
 import { supabase } from '@/lib/db';
 
@@ -25,6 +25,7 @@ export default function Navbar() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const isIncomplete = mounted && currentStudent && checkProfileIncomplete(currentStudent);
 
   // Authentication & Login Modal states
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -73,6 +74,15 @@ export default function Navbar() {
   useEffect(() => {
     setUnreadCount(notifications.filter(n => !n.read).length);
   }, [notifications]);
+
+  // Redirect to portal if profile is incomplete
+  useEffect(() => {
+    if (mounted && currentStudent && checkProfileIncomplete(currentStudent)) {
+      if (pathname !== '/portal') {
+        router.push('/portal');
+      }
+    }
+  }, [currentStudent, pathname, mounted, router]);
 
   const toggleNotif = () => {
     setIsNotifOpen(!isNotifOpen);
@@ -131,46 +141,85 @@ export default function Navbar() {
           
           {/* Branding & Logo */}
           <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="relative w-10 h-10 flex items-center justify-center rounded-lg bg-zinc-900/50 p-1 border border-white/5 group-hover:border-amber-500/30 group-hover:bg-zinc-800/50 transition-all duration-300">
-                <img
-                  src="/logo.png"
-                  alt="Corpus Logo"
-                  className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-110"
-                />
+            {isIncomplete ? (
+              <div className="flex items-center gap-3 cursor-not-allowed opacity-50">
+                <div className="relative w-10 h-10 flex items-center justify-center rounded-lg bg-zinc-900/50 p-1 border border-white/5">
+                  <img
+                    src="/logo.png"
+                    alt="Corpus Logo"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-300 leading-none">
+                    CORPUS
+                  </span>
+                  <span className="hidden md:inline-block text-[9px] font-semibold text-zinc-500 tracking-tight mt-0.5">
+                    Registration Pending...
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-300 group-hover:opacity-85 transition-opacity leading-none">
-                  CORPUS
-                </span>
-                <span className="hidden md:inline-block text-[9px] font-semibold text-zinc-500 tracking-tight mt-0.5">
-                  Crack Cases. Learn Faster.
-                </span>
-              </div>
-            </Link>
+            ) : (
+              <Link href="/" className="flex items-center gap-3 group">
+                <div className="relative w-10 h-10 flex items-center justify-center rounded-lg bg-zinc-900/50 p-1 border border-white/5 group-hover:border-amber-500/30 group-hover:bg-zinc-800/50 transition-all duration-300">
+                  <img
+                    src="/logo.png"
+                    alt="Corpus Logo"
+                    className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-110"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-300 group-hover:opacity-85 transition-opacity leading-none">
+                    CORPUS
+                  </span>
+                  <span className="hidden md:inline-block text-[9px] font-semibold text-zinc-500 tracking-tight mt-0.5">
+                    Crack Cases. Learn Faster.
+                  </span>
+                </div>
+              </Link>
+            )}
 
             {/* Navigation Links */}
             <nav className="hidden lg:flex items-center gap-1.5">
-              <Link
-                href="/dashboard"
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  pathname === '/dashboard'
-                    ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/25'
-                    : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
-                }`}
-              >
-                Competitions
-              </Link>
-              <Link
-                href="/learning"
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  pathname === '/learning'
-                    ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/25'
-                    : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
-                }`}
-              >
-                Learning Hub
-              </Link>
+              {!isIncomplete ? (
+                <>
+                  <Link
+                    href="/dashboard"
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                      pathname === '/dashboard'
+                        ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/25'
+                        : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
+                    }`}
+                  >
+                    Competitions
+                  </Link>
+                  <Link
+                    href="/learning"
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                      pathname === '/learning'
+                        ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/25'
+                        : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
+                    }`}
+                  >
+                    Learning Hub
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <span
+                    className="px-3 py-1.5 text-sm font-medium text-zinc-650 border border-transparent cursor-not-allowed opacity-40"
+                    title="Please complete your profile to unlock Competitions"
+                  >
+                    Competitions
+                  </span>
+                  <span
+                    className="px-3 py-1.5 text-sm font-medium text-zinc-650 border border-transparent cursor-not-allowed opacity-40"
+                    title="Please complete your profile to unlock Learning Hub"
+                  >
+                    Learning Hub
+                  </span>
+                </>
+              )}
               
               {mounted && currentUser && (currentRole === 'student' || currentRole === 'admin') && (
                 <Link
@@ -179,13 +228,13 @@ export default function Navbar() {
                     pathname === '/portal'
                       ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/25'
                       : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
-                  }`}
+                  } ${isIncomplete ? 'border-indigo-500/40 text-indigo-300' : ''}`}
                 >
-                  My Student Portal
+                  My Student Portal {isIncomplete && '(Mandatory)'}
                 </Link>
               )}
 
-              {mounted && currentUser && currentRole === 'admin' && (
+              {mounted && currentUser && currentRole === 'admin' && !isIncomplete && (
                 <Link
                   href="/admin"
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
@@ -286,18 +335,31 @@ export default function Navbar() {
         {/* Mobile Sub-Navigation Links */}
         {mounted && currentUser && (
           <div className="lg:hidden border-t border-white/5 bg-zinc-950/40 overflow-x-auto whitespace-nowrap px-4 py-2 scrollbar-none flex gap-2">
-            <Link href="/dashboard" className={`text-xs px-3 py-1 rounded-full ${pathname === '/dashboard' ? 'bg-indigo-500/20 text-indigo-300' : 'text-zinc-400'}`}>
-              Competitions
-            </Link>
-            <Link href="/learning" className={`text-xs px-3 py-1 rounded-full ${pathname === '/learning' ? 'bg-indigo-500/20 text-indigo-300' : 'text-zinc-400'}`}>
-              Learning Hub
-            </Link>
-            {currentRole === 'student' && (
-              <Link href="/portal" className={`text-xs px-3 py-1 rounded-full ${pathname === '/portal' ? 'bg-indigo-500/20 text-indigo-300' : 'text-zinc-400'}`}>
-                Portal
+            {!isIncomplete ? (
+              <>
+                <Link href="/dashboard" className={`text-xs px-3 py-1 rounded-full ${pathname === '/dashboard' ? 'bg-indigo-500/20 text-indigo-300' : 'text-zinc-400'}`}>
+                  Competitions
+                </Link>
+                <Link href="/learning" className={`text-xs px-3 py-1 rounded-full ${pathname === '/learning' ? 'bg-indigo-500/20 text-indigo-300' : 'text-zinc-400'}`}>
+                  Learning Hub
+                </Link>
+              </>
+            ) : (
+              <>
+                <span className="text-xs px-3 py-1 rounded-full text-zinc-650 cursor-not-allowed opacity-50">
+                  Competitions Locked
+                </span>
+                <span className="text-xs px-3 py-1 rounded-full text-zinc-650 cursor-not-allowed opacity-50">
+                  Learning Hub Locked
+                </span>
+              </>
+            )}
+            {(currentRole === 'student' || currentRole === 'admin') && (
+              <Link href="/portal" className={`text-xs px-3 py-1 rounded-full ${pathname === '/portal' ? 'bg-indigo-500/20 text-indigo-300' : 'text-zinc-400'} ${isIncomplete ? 'border border-indigo-500/40 text-indigo-300 animate-pulse' : ''}`}>
+                Portal {isIncomplete && '(Mandatory)'}
               </Link>
             )}
-            {currentRole === 'admin' && (
+            {currentRole === 'admin' && !isIncomplete && (
               <Link href="/admin" className={`text-xs px-3 py-1 rounded-full ${pathname === '/admin' ? 'bg-amber-500/20 text-amber-300' : 'text-zinc-400'}`}>
                 Admin Panel
               </Link>

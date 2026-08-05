@@ -121,7 +121,7 @@ export default function AdminDashboard() {
   const [newTitle, setNewTitle] = useState('');
   const [newCompany, setNewCompany] = useState('');
   const [newCategory, setNewCategory] = useState<'Consulting' | 'Marketing' | 'Product' | 'Analytics' | 'Finance' | 'Operations' | 'HR'>('Consulting');
-  const [newOpenDate, setNewOpenDate] = useState('2026-06-01');
+  const [newOpenDate, setNewOpenDate] = useState(new Date().toISOString().split('T')[0]);
   const [newDeadline, setNewDeadline] = useState('2026-08-01');
   const [newPrize, setNewPrize] = useState('');
   const [newOrganizer, setNewOrganizer] = useState('');
@@ -238,8 +238,6 @@ export default function AdminDashboard() {
       id: editingCompId || `comp-${Date.now()}`,
       title: newTitle,
       company: newCompany,
-      category: newCategory,
-      open_date: newOpenDate,
       deadline: newDeadline,
       apply_link: newApplyLink || 'https://google.com',
       prize_pool: newPrize,
@@ -1011,57 +1009,27 @@ export default function AdminDashboard() {
                   />
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Company</label>
-                    <input
-                      type="text"
-                      required
-                      value={newCompany}
-                      onChange={(e) => setNewCompany(e.target.value)}
-                      placeholder="E.g., Unilever"
-                      className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-200 focus:outline-none focus:border-amber-500/50"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Category</label>
-                    <select
-                      value={newCategory}
-                      onChange={(e) => setNewCategory(e.target.value as any)}
-                      className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-200 focus:outline-none focus:border-amber-500/50"
-                    >
-                      <option value="Consulting">Consulting</option>
-                      <option value="Marketing">Marketing</option>
-                      <option value="Product">Product</option>
-                      <option value="Analytics">Analytics</option>
-                      <option value="Finance">Finance</option>
-                      <option value="Operations">Operations</option>
-                      <option value="HR">HR</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Company</label>
+                  <input
+                    type="text"
+                    required
+                    value={newCompany}
+                    onChange={(e) => setNewCompany(e.target.value)}
+                    placeholder="E.g., Unilever"
+                    className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-200 focus:outline-none focus:border-amber-500/50"
+                  />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Launch Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={newOpenDate}
-                      onChange={(e) => setNewOpenDate(e.target.value)}
-                      className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-200 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Hard Deadline</label>
-                    <input
-                      type="date"
-                      required
-                      value={newDeadline}
-                      onChange={(e) => setNewDeadline(e.target.value)}
-                      className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-200 focus:outline-none"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Hard Deadline</label>
+                  <input
+                    type="date"
+                    required
+                    value={newDeadline}
+                    onChange={(e) => setNewDeadline(e.target.value)}
+                    className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-200 focus:outline-none"
+                  />
                 </div>
 
                 <div>
@@ -1135,7 +1103,7 @@ export default function AdminDashboard() {
                   <thead>
                     <tr className="border-b border-white/5 text-zinc-500 font-bold bg-zinc-900/40">
                       <th className="p-4">Title</th>
-                      <th className="p-4">Category</th>
+                      <th className="p-4">Company</th>
                       <th className="p-4">Deadline</th>
                       <th className="p-4 text-center">Action</th>
                     </tr>
@@ -1145,11 +1113,10 @@ export default function AdminDashboard() {
                       <tr key={comp.id} className="hover:bg-zinc-900/10">
                         <td className="p-4 font-bold text-zinc-200">
                           {comp.title}
-                          <span className="block text-[10px] text-zinc-500 font-medium">{comp.company}</span>
                         </td>
                         <td className="p-4">
                           <span className="px-2 py-0.5 rounded bg-zinc-900 border border-white/5 text-zinc-400">
-                            {comp.category}
+                            {comp.company}
                           </span>
                         </td>
                         <td className="p-4 text-zinc-400">{comp.deadline}</td>
@@ -1159,8 +1126,8 @@ export default function AdminDashboard() {
                               setEditingCompId(comp.id);
                               setNewTitle(comp.title);
                               setNewCompany(comp.company);
-                              setNewCategory(comp.category);
-                              setNewOpenDate(comp.open_date);
+                              setNewCategory(comp.category || 'Consulting');
+                              setNewOpenDate(comp.open_date || '');
                               setNewDeadline(comp.deadline);
                               setNewPrize(comp.prize_pool);
                               setNewOrganizer(comp.organizer);

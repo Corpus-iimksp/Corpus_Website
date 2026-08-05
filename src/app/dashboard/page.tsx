@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useStore } from '@/lib/store';
+import { useStore, checkProfileIncomplete } from '@/lib/store';
+import { useRouter } from 'next/navigation';
 import { Competition } from '@/lib/db';
 import { 
   Search, 
@@ -19,9 +20,9 @@ import {
 } from 'lucide-react';
 
 export default function Dashboard() {
-  const { competitions, savedCompetitions, toggleBookmark, addSystemNotification } = useStore();
+  const { competitions, savedCompetitions, toggleBookmark, addSystemNotification, currentStudent, updateStudent } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Bookmarked' | 'Participated'>('All');
   const [viewMode, setViewMode] = useState<'card' | 'list' | 'calendar'>('card');
   const [selectedCompForCountdown, setSelectedCompForCountdown] = useState<Competition | null>(null);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -30,12 +31,135 @@ export default function Dashboard() {
   const [currentYear, setCurrentYear] = useState(2026);
   const [currentMonth, setCurrentMonth] = useState(6); // July (0-indexed, so 6 is July)
 
+  const router = useRouter();
+
+  useEffect(() => {
+    if (currentStudent && checkProfileIncomplete(currentStudent)) {
+      router.push('/portal');
+    }
+  }, [currentStudent, router]);
+
   // Seed default selected competition for countdown if none selected
   useEffect(() => {
     if (competitions.length > 0 && !selectedCompForCountdown) {
       setSelectedCompForCountdown(competitions[0]);
     }
   }, [competitions, selectedCompForCountdown]);
+
+  const handleToggleBookmark = (compId: string) => {
+    if (!currentStudent) {
+      alert("Please sign in or register as a student first to manage bookmarks.");
+      return;
+    }
+
+    const currentBookmarks = savedCompetitions;
+    const isBookmarked = currentBookmarks.includes(compId);
+    const nextBookmarked = !isBookmarked;
+
+    const updatedBookmarks = nextBookmarked
+      ? [...currentBookmarks, compId]
+      : currentBookmarks.filter(id => id !== compId);
+
+    // Update store state
+    useStore.setState({ savedCompetitions: updatedBookmarks });
+
+    // Mutually exclusive: if bookmarking, remove from participated stage
+    let updatedStages = { ...(currentStudent.competition_stages || {}) };
+    let deltaWins = 0;
+    let deltaShortlists = 0;
+    let deltaParticipations = 0;
+
+    if (nextBookmarked) {
+      const currentStage = updatedStages[compId] || 'saved';
+      if (currentStage !== 'saved') {
+        const stageWeights = {
+          saved: { wins: 0, shortlists: 0, participations: 0 },
+          participated: { wins: 0, shortlists: 0, participations: 1 },
+          shortlisted: { wins: 0, shortlists: 1, participations: 1 },
+          won: { wins: 1, shortlists: 1, participations: 1 }
+        };
+
+        const nextStage = 'saved';
+        deltaWins = stageWeights[nextStage].wins - stageWeights[currentStage].wins;
+        deltaShortlists = stageWeights[nextStage].shortlists - stageWeights[currentStage].shortlists;
+        deltaParticipations = stageWeights[nextStage].participations - stageWeights[currentStage].participations;
+
+        updatedStages[compId] = 'saved';
+      }
+    }
+
+    updateStudent({
+      ...currentStudent,
+      wins: Math.max(0, (currentStudent.wins || 0) + deltaWins),
+      shortlists: Math.max(0, (currentStudent.shortlists || 0) + deltaShortlists),
+      participations: Math.max(0, (currentStudent.participations || 0) + deltaParticipations),
+      saved_competitions: updatedBookmarks,
+      competition_stages: updatedStages
+    });
+
+    const compObj = competitions.find(c => c.id === compId);
+    if (compObj) {
+      addSystemNotification({
+        id: `bookmark-dash-${compId}-${Date.now()}`,
+        title: nextBookmarked ? '📌 Competition Saved' : '📌 Competition Removed',
+        message: `${compObj.title} by ${compObj.company} is ${nextBookmarked ? 'bookmarked' : 'unbookmarked'}.`,
+        type: 'system',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
+    }
+  };
+
+  const handleMarkParticipated = (compId: string) => {
+    if (!currentStudent) {
+      alert("Please sign in or register as a student first to manage participation stages.");
+      return;
+    }
+
+    const stages = currentStudent.competition_stages || {};
+    const currentStage = stages[compId] || 'saved';
+    
+    const isParticipated = ['participated', 'shortlisted', 'won'].includes(currentStage);
+    const nextStage = isParticipated ? 'saved' : 'participated';
+
+    const updatedStages: Record<string, 'saved' | 'participated' | 'shortlisted' | 'won'> = { ...stages, [compId]: nextStage };
+
+    const stageWeights = {
+      saved: { wins: 0, shortlists: 0, participations: 0 },
+      participated: { wins: 0, shortlists: 0, participations: 1 },
+      shortlisted: { wins: 0, shortlists: 1, participations: 1 },
+      won: { wins: 1, shortlists: 1, participations: 1 }
+    };
+
+    const deltaWins = stageWeights[nextStage].wins - stageWeights[currentStage].wins;
+    const deltaShortlists = stageWeights[nextStage].shortlists - stageWeights[currentStage].shortlists;
+    const deltaParticipations = stageWeights[nextStage].participations - stageWeights[currentStage].participations;
+
+    let updatedBookmarks = currentStudent.saved_competitions || [];
+    if (nextStage === 'participated' && savedCompetitions.includes(compId)) {
+      updatedBookmarks = updatedBookmarks.filter(id => id !== compId);
+      useStore.setState({ savedCompetitions: updatedBookmarks });
+    }
+
+    updateStudent({
+      ...currentStudent,
+      wins: Math.max(0, (currentStudent.wins || 0) + deltaWins),
+      shortlists: Math.max(0, (currentStudent.shortlists || 0) + deltaShortlists),
+      participations: Math.max(0, (currentStudent.participations || 0) + deltaParticipations),
+      competition_stages: updatedStages,
+      saved_competitions: updatedBookmarks
+    });
+
+    const compObj = competitions.find(c => c.id === compId);
+    if (compObj) {
+      addSystemNotification({
+        id: `stage-dash-${compId}-${Date.now()}`,
+        title: nextStage === 'participated' ? '🏆 Milestone: Participated' : '🔄 Milestone Reset',
+        message: `"${compObj.title}" is now marked as ${nextStage === 'participated' ? 'participated' : 'unparticipated'}.`,
+        type: 'system',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
+    }
+  };
 
   // Countdown timer effect
   useEffect(() => {
@@ -65,8 +189,15 @@ export default function Dashboard() {
   const filteredCompetitions = competitions.filter(c => {
     const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           c.company.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || c.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    
+    let matchesStatus = true;
+    if (statusFilter === 'Bookmarked') {
+      matchesStatus = savedCompetitions.includes(c.id);
+    } else if (statusFilter === 'Participated') {
+      matchesStatus = !!(currentStudent?.competition_stages?.[c.id] && currentStudent.competition_stages[c.id] !== 'saved');
+    }
+
+    return matchesSearch && matchesStatus;
   });
 
   const activeCompetitions = filteredCompetitions.filter(c => {
@@ -88,8 +219,6 @@ export default function Dashboard() {
     const deadlineDate = new Date(year, month, day, 23, 59, 59, 999);
     return deadlineDate.getTime() < new Date().getTime();
   });
-
-  const categories = ['All', 'Consulting', 'Marketing', 'Product', 'Analytics', 'Finance', 'Operations', 'HR'];
 
 
 
@@ -195,6 +324,12 @@ export default function Dashboard() {
   };
 
   const renderCard = (comp: Competition, isClosed: boolean) => {
+    const isBookmarkedHighlighted = savedCompetitions.includes(comp.id) && 
+      (!currentStudent?.competition_stages?.[comp.id] || currentStudent.competition_stages[comp.id] === 'saved');
+    
+    const isParticipatedHighlighted = !!(currentStudent?.competition_stages?.[comp.id] && 
+      currentStudent.competition_stages[comp.id] !== 'saved');
+
     return (
       <div
         key={comp.id}
@@ -204,36 +339,44 @@ export default function Dashboard() {
         } ${isClosed ? 'opacity-70 hover:opacity-100 hover:shadow-lg' : ''}`}
       >
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-1.5">
-              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 uppercase">
-                {comp.category}
-              </span>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div>
               {isClosed && (
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-red-500/10 text-red-400 border border-red-500/20 uppercase">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-red-500/10 text-red-400 border border-red-500/20 uppercase animate-pulse">
                   Closed
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1">
+            
+            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleBookmark(comp.id);
-                }}
-                className={`p-1.5 rounded-full transition-colors ${
-                  savedCompetitions.includes(comp.id)
-                    ? 'text-amber-400 hover:text-amber-500'
-                    : 'text-zinc-600 hover:text-zinc-400'
+                onClick={() => handleToggleBookmark(comp.id)}
+                className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold transition-all flex items-center gap-1 ${
+                  isBookmarkedHighlighted
+                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                    : 'bg-zinc-900 border-white/5 text-zinc-500 hover:text-zinc-300'
                 }`}
               >
-                <Star className="w-4 h-4 fill-current" />
+                <Star className={`w-3 h-3 ${isBookmarkedHighlighted ? 'fill-current' : ''}`} />
+                {isBookmarkedHighlighted ? 'Bookmarked' : 'Bookmark'}
+              </button>
+
+              <button
+                onClick={() => handleMarkParticipated(comp.id)}
+                className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold transition-all flex items-center gap-1 ${
+                  isParticipatedHighlighted
+                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                    : 'bg-zinc-900 border-white/5 text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${isParticipatedHighlighted ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'}`}></span>
+                {isParticipatedHighlighted ? 'Participated' : 'Participate'}
               </button>
             </div>
           </div>
 
-          <h3 className={`text-base font-extrabold text-white mb-1 leading-snug ${isClosed ? 'text-zinc-400' : ''}`}>{comp.title}</h3>
-          <span className="text-xs text-zinc-500 font-semibold mb-3 block">{comp.company}</span>
+          <span className="text-xs text-zinc-500 font-semibold mb-1 block uppercase tracking-wider">{comp.company}</span>
+          <h3 className={`text-base font-extrabold text-white mb-3 leading-snug ${isClosed ? 'text-zinc-400' : ''}`}>{comp.title}</h3>
 
           <div className="grid grid-cols-2 gap-2 text-[10px] bg-zinc-900/60 p-2.5 rounded-xl border border-white/5 mb-4">
             <div>
@@ -279,66 +422,62 @@ export default function Dashboard() {
               <tr className="border-b border-white/5 text-zinc-500 font-bold bg-zinc-900/40 uppercase tracking-wider">
                 <th className="p-4">Competition</th>
                 <th className="p-4">Company</th>
-                <th className="p-4">Category</th>
                 <th className="p-4">Deadline</th>
                 <th className="p-4">Prize Pool</th>
                 <th className="p-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {list.map(comp => (
-                <tr 
-                  key={comp.id}
-                  className={`hover:bg-zinc-900/30 transition-colors cursor-pointer ${isClosed ? 'opacity-70 hover:opacity-100' : ''}`}
-                  onClick={() => setSelectedCompForCountdown(comp)}
-                >
-                  <td className="p-4 font-bold text-zinc-200">
-                    {comp.title}
-                    {isClosed && <span className="ml-2 text-[9px] text-red-500 font-extrabold uppercase bg-red-950/30 px-1.5 py-0.5 rounded border border-red-500/20">Closed</span>}
-                  </td>
-                  <td className="p-4 text-zinc-400">{comp.company}</td>
-                  <td className="p-4">
-                    <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-bold border border-white/5">
-                      {comp.category}
-                    </span>
-                  </td>
-                  <td className={`p-4 font-semibold ${isClosed ? 'text-zinc-500 line-through' : 'text-red-400'}`}>{comp.deadline}</td>
-                  <td className="p-4 text-emerald-400 font-bold">{comp.prize_pool}</td>
-                  <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => toggleBookmark(comp.id)}
-                        className={`p-1.5 rounded-lg border transition-colors ${
-                          savedCompetitions.includes(comp.id)
-                            ? 'bg-amber-500/10 border-amber-500/25 text-amber-400'
-                            : 'bg-zinc-900 border-white/5 text-zinc-500 hover:text-zinc-300'
-                        }`}
-                        title="Bookmark"
-                      >
-                        <Star className="w-3.5 h-3.5 fill-current" />
-                      </button>
+              {list.map(comp => {
+                const isBookmarkedHighlighted = savedCompetitions.includes(comp.id) && 
+                  (!currentStudent?.competition_stages?.[comp.id] || currentStudent.competition_stages[comp.id] === 'saved');
+                
+                const isParticipatedHighlighted = !!(currentStudent?.competition_stages?.[comp.id] && 
+                  currentStudent.competition_stages[comp.id] !== 'saved');
 
-                      {isClosed ? (
+                return (
+                  <tr 
+                    key={comp.id}
+                    className={`hover:bg-zinc-900/30 transition-colors cursor-pointer ${isClosed ? 'opacity-70 hover:opacity-100' : ''}`}
+                    onClick={() => setSelectedCompForCountdown(comp)}
+                  >
+                    <td className="p-4 font-bold text-zinc-200">
+                      {comp.title}
+                      {isClosed && <span className="ml-2 text-[9px] text-red-500 font-extrabold uppercase bg-red-950/30 px-1.5 py-0.5 rounded border border-red-500/20">Closed</span>}
+                    </td>
+                    <td className="p-4 text-zinc-400">{comp.company}</td>
+                    <td className={`p-4 font-semibold ${isClosed ? 'text-zinc-500 line-through' : 'text-red-400'}`}>{comp.deadline}</td>
+                    <td className="p-4 text-emerald-400 font-bold">{comp.prize_pool}</td>
+                    <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-center gap-2">
                         <button
-                          disabled
-                          className="px-2 py-1 rounded bg-zinc-900 text-zinc-500 text-[10px] font-bold border border-white/5 cursor-not-allowed"
+                          onClick={() => handleToggleBookmark(comp.id)}
+                          className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold transition-all flex items-center gap-1 ${
+                            isBookmarkedHighlighted
+                              ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                              : 'bg-zinc-900 border-white/5 text-zinc-500 hover:text-zinc-300'
+                          }`}
                         >
-                          Closed
+                          <Star className={`w-3.5 h-3.5 ${isBookmarkedHighlighted ? 'fill-current' : ''}`} />
+                          {isBookmarkedHighlighted ? 'Saved' : 'Save'}
                         </button>
-                      ) : (
-                        <a
-                          href={comp.apply_link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/20"
+
+                        <button
+                          onClick={() => handleMarkParticipated(comp.id)}
+                          className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold transition-all flex items-center gap-1 ${
+                            isParticipatedHighlighted
+                              ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                              : 'bg-zinc-900 border-white/5 text-zinc-500 hover:text-zinc-300'
+                          }`}
                         >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                          <span className={`w-1.5 h-1.5 rounded-full ${isParticipatedHighlighted ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'}`}></span>
+                          {isParticipatedHighlighted ? 'Participated' : 'Participate'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -408,19 +547,19 @@ export default function Dashboard() {
         {/* Left Hand: Filters & Competition Feed */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* Categories Horizontal Scrolling Filter */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
-            {categories.map(cat => (
+          {/* Status Filter Tabs */}
+          <div className="flex items-center gap-1.5 pb-2">
+            {(['All', 'Bookmarked', 'Participated'] as const).map(filter => (
               <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 ${
-                  selectedCategory === cat
+                key={filter}
+                onClick={() => setStatusFilter(filter)}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 ${
+                  statusFilter === filter
                     ? 'bg-indigo-500/10 border-indigo-500/35 text-indigo-300'
                     : 'bg-zinc-900/50 border-white/5 text-zinc-500 hover:text-zinc-300'
                 }`}
               >
-                {cat}
+                {filter}
               </button>
             ))}
           </div>
@@ -428,7 +567,7 @@ export default function Dashboard() {
           {/* Conditional Views Render */}
           {filteredCompetitions.length === 0 ? (
             <div className="glass-panel text-center py-20 rounded-2xl border-white/5 text-zinc-500">
-              No matching competitions found for &ldquo;{searchQuery}&rdquo; under {selectedCategory}.
+              No matching competitions found for &ldquo;{searchQuery}&rdquo; under {statusFilter} filter.
             </div>
           ) : viewMode === 'calendar' ? (
             renderCalendar()
@@ -547,10 +686,12 @@ export default function Dashboard() {
 
               {/* Milestones / Timelines */}
               <div className="border-t border-white/5 pt-4 space-y-4 mb-6 text-xs">
-                <div>
-                  <span className="text-zinc-500 block font-bold">Registration Opens:</span>
-                  <span className="text-zinc-300 font-semibold">{selectedCompForCountdown.open_date}</span>
-                </div>
+                {selectedCompForCountdown.open_date && (
+                  <div>
+                    <span className="text-zinc-500 block font-bold">Registration Opens:</span>
+                    <span className="text-zinc-300 font-semibold">{selectedCompForCountdown.open_date}</span>
+                  </div>
+                )}
                 <div>
                   <span className="text-zinc-500 block font-bold">Hard Deadline:</span>
                   <span className="text-red-400 font-semibold">{selectedCompForCountdown.deadline} 23:59 IST</span>
@@ -578,17 +719,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Quick Mentors Banner */}
-          <div className="glass-panel p-5 rounded-2xl border-white/5 bg-gradient-to-br from-indigo-950/20 to-purple-950/20">
-            <Sparkles className="w-6 h-6 text-indigo-400 mb-2" />
-            <h4 className="font-bold text-xs text-zinc-200">Stuck on a case submission?</h4>
-            <p className="text-[11px] text-zinc-500 mt-1 leading-relaxed">
-              Book a verified winner mentor to review your structure. Get input on your MECE framework.
-            </p>
-            <a href="/#mentors-section" className="text-[10px] font-bold text-indigo-300 hover:text-indigo-200 flex items-center gap-1 mt-3">
-              Browse Mentors Now <ArrowRight className="w-3 h-3" />
-            </a>
-          </div>
 
         </div>
 

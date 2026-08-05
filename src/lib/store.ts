@@ -158,12 +158,10 @@ export const useStore = create<AppState>((set, get) => {
               name,
               email: emailLower,
               role: defaultRole,
-              college: 'IIM Kashipur',
               badges: ['First Step'],
               wins: 0,
               shortlists: 0,
               participations: 0,
-              interests: [],
               competitions_won: [],
               expertise: [],
               available_days: [],
@@ -272,12 +270,9 @@ export const useStore = create<AppState>((set, get) => {
         try {
           await supabase.from('users').update({
             name: student.name,
-            college: student.college,
             program: student.program,
             year: student.year,
             linkedin: student.linkedin,
-            interests: student.interests,
-            resume: student.resume,
             wins: student.wins,
             shortlists: student.shortlists,
             participations: student.participations,
@@ -1065,4 +1060,19 @@ export const useStore = create<AppState>((set, get) => {
 // Helper for exporting notification actions directly
 export const addSystemNotification = (notification: Omit<SystemNotification, 'read'>) => {
   useStore.getState().addSystemNotification(notification);
+};
+
+export const checkProfileIncomplete = (student: any) => {
+  if (!student) return false;
+  const name = student.name?.trim() || '';
+  const program = student.program?.trim() || '';
+  const year = student.year?.trim() || '';
+  const linkedin = student.linkedin?.trim() || '';
+
+  const hasValidName = name.length > 0;
+  const hasValidProgram = ['MBA', 'MBA Analytics'].includes(program);
+  const hasValidYear = ['1st Year', '2nd Year', 'Passout'].includes(year);
+  const hasValidLinkedin = linkedin.length > 0;
+
+  return !(hasValidName && hasValidProgram && hasValidYear && hasValidLinkedin);
 };

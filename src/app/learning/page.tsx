@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useStore } from '@/lib/store';
+import React, { useState, useEffect } from 'react';
+import { useStore, checkProfileIncomplete } from '@/lib/store';
+import { useRouter } from 'next/navigation';
 import { WinningDeck } from '@/lib/db';
 import { 
   BookOpen, 
@@ -20,7 +21,15 @@ import {
 } from 'lucide-react';
 
 export default function LearningHub() {
-  const { addSystemNotification, winningDecks, frameworks, quizzes, updateWinningDeck } = useStore();
+  const { addSystemNotification, winningDecks, frameworks, quizzes, updateWinningDeck, currentStudent } = useStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (currentStudent && checkProfileIncomplete(currentStudent)) {
+      router.push('/portal');
+    }
+  }, [currentStudent, router]);
+
   const [activeTab, setActiveTab] = useState<'frameworks' | 'decks' | 'practice'>('frameworks');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 

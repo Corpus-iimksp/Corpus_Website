@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useStore } from '@/lib/store';
+import { useStore, checkProfileIncomplete } from '@/lib/store';
 import { Student } from '@/lib/db';
 import { 
   User, 
@@ -35,8 +35,20 @@ export default function StudentPortal() {
     mentors
   } = useStore();
 
-  const [activePortalTab, setActivePortalTab] = useState<'dashboard' | 'profile'>('dashboard');
+  const [activePortalTab, setActivePortalTab] = useState<'dashboard' | 'profile'>('profile');
   const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    if (currentStudent && !checkProfileIncomplete(currentStudent)) {
+      setActivePortalTab('dashboard');
+    }
+  }, [currentStudent]);
+
+  useEffect(() => {
+    if (currentStudent && checkProfileIncomplete(currentStudent)) {
+      setActivePortalTab('profile');
+    }
+  }, [currentStudent, activePortalTab]);
 
   // Competition stages mapping
   const [competitionStages, setCompetitionStages] = useState<Record<string, 'saved' | 'participated' | 'shortlisted' | 'won'>>({});
@@ -67,12 +79,9 @@ export default function StudentPortal() {
 
   // Profile Form States
   const [profileName, setProfileName] = useState(currentStudent?.name || '');
-  const [profileCollege, setProfileCollege] = useState(currentStudent?.college || 'IIM Kashipur');
-  const [profileProgram, setProfileProgram] = useState(currentStudent?.program || 'PGP MBA');
-  const [profileYear, setProfileYear] = useState(currentStudent?.year || '1st Year');
+  const [profileProgram, setProfileProgram] = useState(['MBA', 'MBA Analytics'].includes(currentStudent?.program || '') ? (currentStudent?.program || '') : '');
+  const [profileYear, setProfileYear] = useState(['1st Year', '2nd Year', 'Passout'].includes(currentStudent?.year || '') ? (currentStudent?.year || '') : '');
   const [profileLinkedin, setProfileLinkedin] = useState(currentStudent?.linkedin || '');
-  const [profileInterests, setProfileInterests] = useState<string[]>(currentStudent?.interests || []);
-  const [resumeName, setResumeName] = useState(currentStudent?.resume || '');
 
   const [profileWins, setProfileWins] = useState(currentStudent?.wins || 0);
   const [profileShortlists, setProfileShortlists] = useState(currentStudent?.shortlists || 0);
@@ -82,12 +91,9 @@ export default function StudentPortal() {
   useEffect(() => {
     if (currentStudent) {
       setProfileName(currentStudent.name || '');
-      setProfileCollege(currentStudent.college || 'IIM Kashipur');
-      setProfileProgram(currentStudent.program || 'PGP MBA');
-      setProfileYear(currentStudent.year || '1st Year');
+      setProfileProgram(['MBA', 'MBA Analytics'].includes(currentStudent.program || '') ? (currentStudent.program || '') : '');
+      setProfileYear(['1st Year', '2nd Year', 'Passout'].includes(currentStudent.year || '') ? (currentStudent.year || '') : '');
       setProfileLinkedin(currentStudent.linkedin || '');
-      setProfileInterests(currentStudent.interests || []);
-      setResumeName(currentStudent.resume || '');
       setProfileWins(currentStudent.wins || 0);
       setProfileShortlists(currentStudent.shortlists || 0);
       setProfileParticipations(currentStudent.participations || 0);
@@ -118,12 +124,23 @@ export default function StudentPortal() {
     const deltaShortlists = stageWeights[nextStage].shortlists - stageWeights[currentStage].shortlists;
     const deltaParticipations = stageWeights[nextStage].participations - stageWeights[currentStage].participations;
 
+    let currentBookmarks = currentStudent.saved_competitions || [];
+    if (nextStage === 'saved') {
+      if (!currentBookmarks.includes(compId)) {
+        currentBookmarks = [...currentBookmarks, compId];
+      }
+    } else {
+      currentBookmarks = currentBookmarks.filter(id => id !== compId);
+    }
+    useStore.setState({ savedCompetitions: currentBookmarks });
+
     updateStudent({
       ...currentStudent,
       wins: Math.max(0, (currentStudent.wins || 0) + deltaWins),
       shortlists: Math.max(0, (currentStudent.shortlists || 0) + deltaShortlists),
       participations: Math.max(0, (currentStudent.participations || 0) + deltaParticipations),
-      competition_stages: updatedStages
+      competition_stages: updatedStages,
+      saved_competitions: currentBookmarks
     });
 
     // 3. Add system notification
@@ -149,15 +166,20 @@ export default function StudentPortal() {
     e.preventDefault();
     if (!currentStudent) return;
 
+    if (!profileName.trim() || !profileProgram || !profileYear || !profileLinkedin.trim()) {
+      alert("Please fill in all mandatory fields (Name, Degree Program, Year, and LinkedIn profile).");
+      return;
+    }
+
     updateStudent({
       ...currentStudent,
-      name: profileName,
-      college: profileCollege,
+      name: profileName.trim(),
+      college: 'IIM Kashipur',
       program: profileProgram,
       year: profileYear,
-      linkedin: profileLinkedin,
-      interests: profileInterests,
-      resume: resumeName || 'uploaded_resume.pdf',
+      linkedin: profileLinkedin.trim(),
+      interests: [],
+      resume: '',
       wins: profileWins,
       shortlists: profileShortlists,
       participations: profileParticipations
@@ -170,16 +192,8 @@ export default function StudentPortal() {
       type: 'system',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
-    alert('Profile saved!');
-  };
-
-  // Toggle interests selection helper
-  const handleInterestToggle = (interest: string) => {
-    if (profileInterests.includes(interest)) {
-      setProfileInterests(profileInterests.filter(i => i !== interest));
-    } else {
-      setProfileInterests([...profileInterests, interest]);
-    }
+    alert('Profile saved successfully!');
+    setActivePortalTab('dashboard');
   };
 
 
@@ -188,8 +202,11 @@ export default function StudentPortal() {
 
 
 
-  // Saved Competitions Details
-  const savedCompsDetails = competitions.filter(comp => savedCompetitions.includes(comp.id));
+  // Saved Competitions Details (include both bookmarked and participated/milestone ones)
+  const savedCompsDetails = competitions.filter(comp => 
+    savedCompetitions.includes(comp.id) || 
+    (competitionStages[comp.id] && competitionStages[comp.id] !== 'saved')
+  );
 
   // Filter Saved Challenges by Pipeline Stage
   const savedCases = savedCompsDetails.filter(comp => {
@@ -251,27 +268,38 @@ export default function StudentPortal() {
 
       {/* Portal Tabs Selector */}
       <div className="flex border-b border-white/5 mb-8 gap-2 overflow-x-auto pb-1 scrollbar-none">
-        <button
-          onClick={() => setActivePortalTab('dashboard')}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all shrink-0 ${
-            activePortalTab === 'dashboard' 
-              ? 'border-indigo-500 text-indigo-300 bg-indigo-500/5' 
-              : 'border-transparent text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          📊 Preparation Dashboard
-        </button>
+        {(!currentStudent || !checkProfileIncomplete(currentStudent)) ? (
+          <>
+            <button
+              onClick={() => setActivePortalTab('dashboard')}
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all shrink-0 ${
+                activePortalTab === 'dashboard' 
+                  ? 'border-indigo-500 text-indigo-300 bg-indigo-500/5' 
+                  : 'border-transparent text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              📊 Preparation Dashboard
+            </button>
 
-        <button
-          onClick={() => setActivePortalTab('profile')}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all shrink-0 ${
-            activePortalTab === 'profile' 
-              ? 'border-indigo-500 text-indigo-300 bg-indigo-500/5' 
-              : 'border-transparent text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          ⚙️ Profile Registration
-        </button>
+            <button
+              onClick={() => setActivePortalTab('profile')}
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all shrink-0 ${
+                activePortalTab === 'profile' 
+                  ? 'border-indigo-500 text-indigo-300 bg-indigo-500/5' 
+                  : 'border-transparent text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              ⚙️ Profile Registration
+            </button>
+          </>
+        ) : (
+          <button
+            disabled
+            className="px-4 py-2.5 text-xs font-bold border-b-2 border-indigo-500 text-indigo-300 bg-indigo-500/5 transition-all shrink-0 cursor-not-allowed"
+          >
+            ⚙️ Profile Registration (Mandatory First Step)
+          </button>
+        )}
       </div>
 
       {/* Tab Panels */}
@@ -539,54 +567,57 @@ export default function StudentPortal() {
       {/* 5. PROFILE REGISTRATION */}
       {activePortalTab === 'profile' && (
         <div className="glass-panel p-6 rounded-2xl border-white/5 max-w-xl mx-auto">
+          {currentStudent && checkProfileIncomplete(currentStudent) && (
+            <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] leading-relaxed">
+              <span className="font-extrabold block text-sm mb-1 uppercase tracking-wider text-amber-400">
+                ⚠️ Complete Profile Registration Required
+              </span>
+              Please fill out all mandatory fields (Name, Degree Program, Year, and LinkedIn profile) to unlock the full platform features. Access to other sections is restricted until registration is complete.
+            </div>
+          )}
+
           <h3 className="text-base font-black text-zinc-200 uppercase tracking-wider border-b border-white/5 pb-3 mb-6">
             Student Profile Registry
           </h3>
 
           <form onSubmit={handleProfileSave} className="space-y-4 text-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={profileName}
-                  onChange={(e) => setProfileName(e.target.value)}
-                  className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/50"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">College/Campus</label>
-                <input
-                  type="text"
-                  required
-                  value={profileCollege}
-                  onChange={(e) => setProfileCollege(e.target.value)}
-                  className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/50"
-                />
-              </div>
+            <div>
+              <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Full Name</label>
+              <input
+                type="text"
+                required
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/50"
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Degree Program</label>
-                <input
-                  type="text"
+                <select
                   required
                   value={profileProgram}
                   onChange={(e) => setProfileProgram(e.target.value)}
                   className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/50"
-                />
+                >
+                  <option value="" disabled hidden>Select program</option>
+                  <option value="MBA">MBA</option>
+                  <option value="MBA Analytics">MBA Analytics</option>
+                </select>
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Year</label>
                 <select
+                  required
                   value={profileYear}
                   onChange={(e) => setProfileYear(e.target.value)}
                   className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/50"
                 >
-                  <option value="1st Year">1st Year MBA</option>
-                  <option value="2nd Year">2nd Year MBA</option>
+                  <option value="" disabled hidden>Select year</option>
+                  <option value="1st Year">1st Year</option>
+                  <option value="2nd Year">2nd Year</option>
+                  <option value="Passout">Passout</option>
                 </select>
               </div>
               <div>
@@ -601,48 +632,6 @@ export default function StudentPortal() {
                 />
               </div>
             </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Areas of Interest</label>
-              <div className="flex flex-wrap gap-2 mt-1.5">
-                {['Consulting', 'Marketing', 'Product', 'Analytics', 'Finance', 'Operations', 'HR'].map((interest) => {
-                  const selected = profileInterests.includes(interest);
-                  return (
-                    <button
-                      type="button"
-                      key={interest}
-                      onClick={() => handleInterestToggle(interest)}
-                      className={`px-3 py-1.5 rounded-full border font-bold transition-all ${
-                        selected
-                          ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300'
-                          : 'bg-zinc-900 border-white/5 text-zinc-500 hover:text-zinc-300'
-                      }`}
-                    >
-                      {interest}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Resume upload mock */}
-            <div className="border border-dashed border-white/10 rounded-xl p-5 text-center bg-zinc-900/30">
-              <Upload className="w-6 h-6 text-zinc-500 mx-auto mb-2" />
-              <span className="text-[10px] text-zinc-500 block">Drag & Drop Resume PDF (Consulting formatted)</span>
-              <button
-                type="button"
-                onClick={() => {
-                  const mockName = `${profileName.toLowerCase().replace(' ', '_')}_resume_seed.pdf`;
-                  setResumeName(mockName);
-                  alert(`File upload simulation complete: ${mockName}`);
-                }}
-                className="mt-2 text-[10px] font-bold text-indigo-400 hover:underline"
-              >
-                {resumeName ? `Attached: ${resumeName}` : 'Select mock file upload'}
-              </button>
-            </div>
-
-
 
             <button
               type="submit"

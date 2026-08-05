@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useStore } from '@/lib/store';
+import { useRouter } from 'next/navigation';
+import { useStore, checkProfileIncomplete } from '@/lib/store';
 import { 
   Sparkles, 
   Calendar, 
@@ -21,7 +22,7 @@ import {
 } from 'lucide-react';
 
 export default function Home() {
-  const { competitions, mentors, students, bookSession, currentStudent } = useStore();
+  const { competitions, mentors, students, winningDecks, bookSession, currentStudent } = useStore();
   const [selectedMentor, setSelectedMentor] = useState<any | null>(null);
   const [bookingTime, setBookingTime] = useState('');
   const [bookingNotes, setBookingNotes] = useState('');
@@ -29,16 +30,20 @@ export default function Home() {
   const [bookingProofName, setBookingProofName] = useState('');
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    if (currentStudent && checkProfileIncomplete(currentStudent)) {
+      router.push('/portal');
+    }
+  }, [currentStudent, router]);
 
   const stats = [
     { label: 'Live Opportunities', val: String(competitions.length) },
     { label: 'Mentors Available', val: String(mentors.length) },
-    { label: 'Total Student Registered', val: String(students.length) },
-    { label: 'National Winners', val: String(students.filter(s => s.wins && s.wins > 0).length) }
+    { label: 'Winning Decks', val: String(winningDecks?.length || 0) },
+    { label: 'Podium Finished', val: String(students.filter(s => s.wins && s.wins > 0).length) }
   ];
 
   const handleBooking = (e: React.FormEvent) => {
@@ -146,17 +151,19 @@ export default function Home() {
             <div key={comp.id} className="glass-card rounded-2xl p-6 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 uppercase">
-                    {comp.category}
-                  </span>
+                  {comp.category && (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 uppercase">
+                      {comp.category}
+                    </span>
+                  )}
                   <div className="flex items-center gap-1 text-[10px] text-zinc-500">
                     <Calendar className="w-3.5 h-3.5" />
                     Due: {comp.deadline}
                   </div>
                 </div>
 
-                <h3 className="text-lg font-bold text-white mb-1 leading-snug">{comp.title}</h3>
-                <span className="text-xs text-zinc-500 font-semibold mb-4 block">{comp.company}</span>
+                <span className="text-xs text-zinc-500 font-semibold mb-1 block uppercase tracking-wider">{comp.company}</span>
+                <h3 className="text-lg font-bold text-white mb-4 leading-snug">{comp.title}</h3>
 
                 <div className="bg-zinc-900/60 rounded-xl p-3.5 border border-white/5 mb-6">
                   <div className="flex justify-between items-center text-xs">

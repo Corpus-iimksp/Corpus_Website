@@ -5,12 +5,12 @@ export interface Student {
   id: string;
   name: string;
   email: string;
-  college: string;
+  college?: string;
   program: string;
   year: string;
-  resume: string;
+  resume?: string;
   linkedin: string;
-  interests: string[];
+  interests?: string[];
   badges: string[];
   wins: number;
   shortlists: number;
@@ -58,8 +58,8 @@ export interface Competition {
   id: string;
   title: string;
   company: string;
-  category: 'Marketing' | 'Analytics' | 'Product' | 'Consulting' | 'Finance' | 'Operations' | 'HR';
-  open_date: string;
+  category?: 'Marketing' | 'Analytics' | 'Product' | 'Consulting' | 'Finance' | 'Operations' | 'HR';
+  open_date?: string;
   deadline: string;
   apply_link: string;
   prize_pool: string;
@@ -150,7 +150,7 @@ export interface UserProfile {
   name: string;
   email: string;
   role: 'student' | 'mentor' | 'admin';
-  college: string;
+  college?: string;
   program?: string;
   year?: string;
   resume?: string;
