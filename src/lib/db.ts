@@ -15,9 +15,10 @@ export interface Student {
   wins: number;
   shortlists: number;
   participations: number;
+  rejected: number;
   created_at?: string;
   saved_competitions?: string[];
-  competition_stages?: Record<string, 'saved' | 'participated' | 'shortlisted' | 'won'>;
+  competition_stages?: Record<string, 'saved' | 'participated' | 'rejected' | 'shortlisted' | 'won'>;
 }
 
 export interface Mentor {
@@ -160,6 +161,7 @@ export interface UserProfile {
   wins?: number;
   shortlists?: number;
   participations?: number;
+  rejected?: number;
   batch?: string;
   current_role?: string;
   competitions_won?: string[];
@@ -170,7 +172,7 @@ export interface UserProfile {
   available_slots?: string[];
   created_at?: string;
   saved_competitions?: string[];
-  competition_stages?: Record<string, 'saved' | 'participated' | 'shortlisted' | 'won'>;
+  competition_stages?: Record<string, 'saved' | 'participated' | 'rejected' | 'shortlisted' | 'won'>;
 }
 
 const DEFAULT_USERS: UserProfile[] = [];

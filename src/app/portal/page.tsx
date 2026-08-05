@@ -51,7 +51,7 @@ export default function StudentPortal() {
   }, [currentStudent, activePortalTab]);
 
   // Competition stages mapping
-  const [competitionStages, setCompetitionStages] = useState<Record<string, 'saved' | 'participated' | 'shortlisted' | 'won'>>({});
+  const [competitionStages, setCompetitionStages] = useState<Record<string, 'saved' | 'participated' | 'rejected' | 'shortlisted' | 'won'>>({});
 
   // Sync state with database (with auto-migration from local storage to database)
   useEffect(() => {
@@ -101,7 +101,7 @@ export default function StudentPortal() {
   }, [currentStudent]);
 
   // Handle Competition stage transition in Pipeline Tracker
-  const handleStageTransition = (compId: string, nextStage: 'saved' | 'participated' | 'shortlisted' | 'won') => {
+  const handleStageTransition = (compId: string, nextStage: 'saved' | 'participated' | 'rejected' | 'shortlisted' | 'won') => {
     if (!currentStudent) return;
     
     const currentStage = competitionStages[compId] || 'saved';
@@ -114,15 +114,17 @@ export default function StudentPortal() {
 
     // 2. Compute deltas
     const stageWeights = {
-      saved: { wins: 0, shortlists: 0, participations: 0 },
-      participated: { wins: 0, shortlists: 0, participations: 1 },
-      shortlisted: { wins: 0, shortlists: 1, participations: 1 },
-      won: { wins: 1, shortlists: 1, participations: 1 }
+      saved: { wins: 0, shortlists: 0, participations: 0, rejected: 0 },
+      participated: { wins: 0, shortlists: 0, participations: 1, rejected: 0 },
+      rejected: { wins: 0, shortlists: 0, participations: 1, rejected: 1 },
+      shortlisted: { wins: 0, shortlists: 1, participations: 1, rejected: 0 },
+      won: { wins: 1, shortlists: 1, participations: 1, rejected: 0 }
     };
 
     const deltaWins = stageWeights[nextStage].wins - stageWeights[currentStage].wins;
     const deltaShortlists = stageWeights[nextStage].shortlists - stageWeights[currentStage].shortlists;
     const deltaParticipations = stageWeights[nextStage].participations - stageWeights[currentStage].participations;
+    const deltaRejected = stageWeights[nextStage].rejected - stageWeights[currentStage].rejected;
 
     let currentBookmarks = currentStudent.saved_competitions || [];
     if (nextStage === 'saved') {
@@ -139,6 +141,7 @@ export default function StudentPortal() {
       wins: Math.max(0, (currentStudent.wins || 0) + deltaWins),
       shortlists: Math.max(0, (currentStudent.shortlists || 0) + deltaShortlists),
       participations: Math.max(0, (currentStudent.participations || 0) + deltaParticipations),
+      rejected: Math.max(0, (currentStudent.rejected || 0) + deltaRejected),
       competition_stages: updatedStages,
       saved_competitions: currentBookmarks
     });
@@ -148,9 +151,10 @@ export default function StudentPortal() {
     if (compObj) {
       const isBackward = stageWeights[nextStage].participations < stageWeights[currentStage].participations ||
                          stageWeights[nextStage].shortlists < stageWeights[currentStage].shortlists ||
-                         stageWeights[nextStage].wins < stageWeights[currentStage].wins;
+                         stageWeights[nextStage].wins < stageWeights[currentStage].wins ||
+                         stageWeights[nextStage].rejected < stageWeights[currentStage].rejected;
       
-      const stageName = nextStage === 'saved' ? 'Bookmarked' : nextStage === 'participated' ? 'Participated' : nextStage === 'shortlisted' ? 'Shortlisted' : 'National Win';
+      const stageName = nextStage === 'saved' ? 'Bookmarked' : nextStage === 'participated' ? 'Participated' : nextStage === 'rejected' ? 'Rejected' : nextStage === 'shortlisted' ? 'Shortlisted' : 'National Win';
       addSystemNotification({
         id: `stage-${compId}-${Date.now()}`,
         title: isBackward ? '🔄 Milestone Reset' : `🏆 Milestone: ${stageName}`,
@@ -222,6 +226,11 @@ export default function StudentPortal() {
   const shortlistedAndWonCases = savedCompsDetails.filter(comp => {
     const stage = competitionStages[comp.id];
     return stage === 'shortlisted' || stage === 'won';
+  });
+
+  const rejectedCases = savedCompsDetails.filter(comp => {
+    const stage = competitionStages[comp.id];
+    return stage === 'rejected';
   });
 
   // Student booked sessions details
@@ -318,20 +327,20 @@ export default function StudentPortal() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-zinc-900/40 p-3 rounded-xl border border-white/5 text-center">
-                  <span className="text-2xl font-black text-indigo-400 block">{currentStudent?.wins || 0}</span>
-                  <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">National Wins</span>
+                  <span className="text-2xl font-black text-sky-400 block">{currentStudent?.participations || 0}</span>
+                  <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">Participated</span>
+                </div>
+                <div className="bg-zinc-900/40 p-3 rounded-xl border border-white/5 text-center">
+                  <span className="text-2xl font-black text-red-400 block">{currentStudent?.rejected || 0}</span>
+                  <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">Rejected</span>
                 </div>
                 <div className="bg-zinc-900/40 p-3 rounded-xl border border-white/5 text-center">
                   <span className="text-2xl font-black text-purple-400 block">{currentStudent?.shortlists || 0}</span>
                   <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">Shortlists</span>
                 </div>
                 <div className="bg-zinc-900/40 p-3 rounded-xl border border-white/5 text-center">
-                  <span className="text-2xl font-black text-sky-400 block">{currentStudent?.participations || 0}</span>
-                  <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">Participated</span>
-                </div>
-                <div className="bg-zinc-900/40 p-3 rounded-xl border border-white/5 text-center">
-                  <span className="text-2xl font-black text-emerald-400 block">{studentBookings.length}</span>
-                  <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">Sessions Booked</span>
+                  <span className="text-2xl font-black text-indigo-400 block">{currentStudent?.wins || 0}</span>
+                  <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">National Wins</span>
                 </div>
               </div>
             </div>
@@ -342,11 +351,11 @@ export default function StudentPortal() {
               <div>
                 <h3 className="text-sm font-black text-white uppercase tracking-wider">Case Challenge Tracker Pipeline</h3>
                 <p className="text-[10px] text-zinc-500 mt-1">
-                  Track your competition milestones automatically. Transition saved challenges from saved, to participated, to shortlisted, and won!
+                  Track your competition milestones automatically. Transition saved challenges from saved, to participated, to rejected, to shortlisted, and won!
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 
                 {/* Column 1: Saved (Bookmarked but not participated yet) */}
                 <div className="bg-zinc-950/40 p-4 rounded-xl border border-white/5 space-y-3 flex flex-col min-h-[300px]">
@@ -385,10 +394,10 @@ export default function StudentPortal() {
                   </div>
                 </div>
 
-                {/* Column 2: Participated (Participated but not shortlisted) */}
+                {/* Column 2: Participated (Participated but not shortlisted/rejected) */}
                 <div className="bg-zinc-950/40 p-4 rounded-xl border border-white/5 space-y-3 flex flex-col min-h-[300px]">
                   <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-3">
-                    <span className="text-[10px] font-black text-purple-400 uppercase">🚀 Participated ({participatedCases.length})</span>
+                    <span className="text-[10px] font-black text-sky-400 uppercase">🚀 Participated ({participatedCases.length})</span>
                   </div>
                   <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-none flex-1">
                     {participatedCases.length === 0 ? (
@@ -407,6 +416,12 @@ export default function StudentPortal() {
                             🏆 Shortlist
                           </button>
                           <button
+                            onClick={() => handleStageTransition(comp.id, 'rejected')}
+                            className="w-full py-1.5 bg-red-500/10 hover:bg-red-500 hover:text-white rounded text-[10px] font-bold text-red-400 flex items-center justify-center gap-1 transition-all mt-1"
+                          >
+                            ❌ Move to Rejected
+                          </button>
+                          <button
                             onClick={() => handleStageTransition(comp.id, 'saved')}
                             className="w-full text-[9px] text-zinc-500 hover:text-zinc-300 hover:underline transition-all block text-center mt-1"
                           >
@@ -418,7 +433,40 @@ export default function StudentPortal() {
                   </div>
                 </div>
 
-                {/* Column 3: Shortlisted & Won */}
+                {/* Column 3: Rejected */}
+                <div className="bg-zinc-950/40 p-4 rounded-xl border border-white/5 space-y-3 flex flex-col min-h-[300px]">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-3">
+                    <span className="text-[10px] font-black text-red-400 uppercase">❌ Rejected ({rejectedCases.length})</span>
+                  </div>
+                  <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-none flex-1">
+                    {rejectedCases.length === 0 ? (
+                      <div className="text-center py-12 text-[10px] text-zinc-650 italic">
+                        Rejected cases will appear here.
+                      </div>
+                    ) : (
+                      rejectedCases.map(comp => (
+                        <div key={comp.id} className="p-3 bg-zinc-900/50 border border-white/5 rounded-lg text-[11px] space-y-2 text-left">
+                          <div className="font-bold text-zinc-250 leading-tight">{comp.title}</div>
+                          <div className="text-[9px] text-zinc-550 leading-tight">{comp.company}</div>
+                          <button
+                            onClick={() => handleStageTransition(comp.id, 'participated')}
+                            className="w-full py-1.5 bg-sky-500/10 hover:bg-sky-500 hover:text-white rounded text-[10px] font-bold text-sky-400 flex items-center justify-center gap-1 transition-all"
+                          >
+                            🚀 Move to Participated
+                          </button>
+                          <button
+                            onClick={() => handleStageTransition(comp.id, 'saved')}
+                            className="w-full text-[9px] text-zinc-500 hover:text-zinc-300 hover:underline transition-all block text-center mt-1"
+                          >
+                            ← Move to Saved
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Column 4: Shortlisted & Won */}
                 <div className="bg-zinc-950/40 p-4 rounded-xl border border-white/5 space-y-3 flex flex-col min-h-[300px]">
                   <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-3">
                     <span className="text-[10px] font-black text-emerald-400 uppercase">🥇 Shortlisted & Wins ({shortlistedAndWonCases.length})</span>
@@ -462,6 +510,12 @@ export default function StudentPortal() {
                                   className="w-full py-1.5 bg-emerald-500/10 hover:bg-emerald-500 hover:text-black rounded text-[10px] font-bold text-emerald-400 flex items-center justify-center gap-1 transition-all"
                                 >
                                   🥇 National Win
+                                </button>
+                                <button
+                                  onClick={() => handleStageTransition(comp.id, 'rejected')}
+                                  className="w-full py-1.5 bg-red-500/10 hover:bg-red-500 hover:text-white rounded text-[10px] font-bold text-red-400 flex items-center justify-center gap-1 transition-all mt-1"
+                                >
+                                  ❌ Move to Rejected
                                 </button>
                                 <button
                                   onClick={() => handleStageTransition(comp.id, 'participated')}

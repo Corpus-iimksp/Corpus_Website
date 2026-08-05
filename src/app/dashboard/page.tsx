@@ -68,21 +68,24 @@ export default function Dashboard() {
     let deltaWins = 0;
     let deltaShortlists = 0;
     let deltaParticipations = 0;
+    let deltaRejected = 0;
 
     if (nextBookmarked) {
       const currentStage = updatedStages[compId] || 'saved';
       if (currentStage !== 'saved') {
         const stageWeights = {
-          saved: { wins: 0, shortlists: 0, participations: 0 },
-          participated: { wins: 0, shortlists: 0, participations: 1 },
-          shortlisted: { wins: 0, shortlists: 1, participations: 1 },
-          won: { wins: 1, shortlists: 1, participations: 1 }
+          saved: { wins: 0, shortlists: 0, participations: 0, rejected: 0 },
+          participated: { wins: 0, shortlists: 0, participations: 1, rejected: 0 },
+          rejected: { wins: 0, shortlists: 0, participations: 1, rejected: 1 },
+          shortlisted: { wins: 0, shortlists: 1, participations: 1, rejected: 0 },
+          won: { wins: 1, shortlists: 1, participations: 1, rejected: 0 }
         };
 
         const nextStage = 'saved';
         deltaWins = stageWeights[nextStage].wins - stageWeights[currentStage].wins;
         deltaShortlists = stageWeights[nextStage].shortlists - stageWeights[currentStage].shortlists;
         deltaParticipations = stageWeights[nextStage].participations - stageWeights[currentStage].participations;
+        deltaRejected = stageWeights[nextStage].rejected - stageWeights[currentStage].rejected;
 
         updatedStages[compId] = 'saved';
       }
@@ -93,6 +96,7 @@ export default function Dashboard() {
       wins: Math.max(0, (currentStudent.wins || 0) + deltaWins),
       shortlists: Math.max(0, (currentStudent.shortlists || 0) + deltaShortlists),
       participations: Math.max(0, (currentStudent.participations || 0) + deltaParticipations),
+      rejected: Math.max(0, (currentStudent.rejected || 0) + deltaRejected),
       saved_competitions: updatedBookmarks,
       competition_stages: updatedStages
     });
@@ -118,21 +122,23 @@ export default function Dashboard() {
     const stages = currentStudent.competition_stages || {};
     const currentStage = stages[compId] || 'saved';
     
-    const isParticipated = ['participated', 'shortlisted', 'won'].includes(currentStage);
+    const isParticipated = ['participated', 'rejected', 'shortlisted', 'won'].includes(currentStage);
     const nextStage = isParticipated ? 'saved' : 'participated';
 
-    const updatedStages: Record<string, 'saved' | 'participated' | 'shortlisted' | 'won'> = { ...stages, [compId]: nextStage };
+    const updatedStages: Record<string, 'saved' | 'participated' | 'rejected' | 'shortlisted' | 'won'> = { ...stages, [compId]: nextStage };
 
     const stageWeights = {
-      saved: { wins: 0, shortlists: 0, participations: 0 },
-      participated: { wins: 0, shortlists: 0, participations: 1 },
-      shortlisted: { wins: 0, shortlists: 1, participations: 1 },
-      won: { wins: 1, shortlists: 1, participations: 1 }
+      saved: { wins: 0, shortlists: 0, participations: 0, rejected: 0 },
+      participated: { wins: 0, shortlists: 0, participations: 1, rejected: 0 },
+      rejected: { wins: 0, shortlists: 0, participations: 1, rejected: 1 },
+      shortlisted: { wins: 0, shortlists: 1, participations: 1, rejected: 0 },
+      won: { wins: 1, shortlists: 1, participations: 1, rejected: 0 }
     };
 
     const deltaWins = stageWeights[nextStage].wins - stageWeights[currentStage].wins;
     const deltaShortlists = stageWeights[nextStage].shortlists - stageWeights[currentStage].shortlists;
     const deltaParticipations = stageWeights[nextStage].participations - stageWeights[currentStage].participations;
+    const deltaRejected = stageWeights[nextStage].rejected - stageWeights[currentStage].rejected;
 
     let updatedBookmarks = currentStudent.saved_competitions || [];
     if (nextStage === 'participated' && savedCompetitions.includes(compId)) {
@@ -145,6 +151,7 @@ export default function Dashboard() {
       wins: Math.max(0, (currentStudent.wins || 0) + deltaWins),
       shortlists: Math.max(0, (currentStudent.shortlists || 0) + deltaShortlists),
       participations: Math.max(0, (currentStudent.participations || 0) + deltaParticipations),
+      rejected: Math.max(0, (currentStudent.rejected || 0) + deltaRejected),
       competition_stages: updatedStages,
       saved_competitions: updatedBookmarks
     });

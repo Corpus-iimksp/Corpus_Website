@@ -91,7 +91,8 @@ const DEMO_STUDENT: Student = {
   badges: ['Case Champion', 'First Competition'],
   wins: 1,
   shortlists: 2,
-  participations: 4
+  participations: 4,
+  rejected: 0
 };
 
 export const useStore = create<AppState>((set, get) => {
@@ -162,6 +163,7 @@ export const useStore = create<AppState>((set, get) => {
               wins: 0,
               shortlists: 0,
               participations: 0,
+              rejected: 0,
               competitions_won: [],
               expertise: [],
               available_days: [],
@@ -276,6 +278,7 @@ export const useStore = create<AppState>((set, get) => {
             wins: student.wins,
             shortlists: student.shortlists,
             participations: student.participations,
+            rejected: student.rejected,
             saved_competitions: student.saved_competitions || [],
             competition_stages: student.competition_stages || {}
           }).eq('email', student.email);
