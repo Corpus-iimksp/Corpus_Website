@@ -623,11 +623,11 @@ export default function StudentPortal() {
               <div>
                 <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">LinkedIn Profile</label>
                 <input
-                  type="url"
+                  type="text"
                   required
                   value={profileLinkedin}
                   onChange={(e) => setProfileLinkedin(e.target.value)}
-                  placeholder="https://linkedin.com/in/..."
+                  placeholder="linkedin.com/in/... or username"
                   className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/50"
                 />
               </div>
