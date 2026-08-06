@@ -43,14 +43,21 @@ export default function RootLayout({
                 CORPUS
               </span>
               <p className="text-xs text-zinc-500 mt-1">
-                The Ultimate Hub for Case Competition Success
+                IIM Kashipur Case Competition Cell
               </p>
             </div>
-            <div className="flex gap-6 text-xs text-zinc-500">
-              <span className="hover:text-zinc-300 cursor-pointer">Privacy Policy</span>
-              <span className="hover:text-zinc-300 cursor-pointer">Terms of Service</span>
-              <span className="hover:text-zinc-300 cursor-pointer">Contact Support</span>
-            </div>
+            <div className="flex justify-center mt-4">
+              <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-zinc-500 mt-4">
+                <span>Roushan</span>
+                <span>Ashutosh</span>
+                <span>Shashwat</span>
+                <span>Yash</span>
+                <span>Kartik</span>
+                <span>Vihana</span>
+                <span>Sandhiya</span>
+                <span>Anish</span>
+              </div>
+           </div>
             <div className="text-xs text-zinc-600">
               &copy; {new Date().getFullYear()} CORPUS. Created for IIM Kashipur students.
             </div>
