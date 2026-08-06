@@ -436,39 +436,72 @@ export default function AdminDashboard() {
 
   const studentsList = students;
 
-  // Cohort & Gender analysis logic
+  // Cohort, Year & Gender analysis logic
   let mbaCount = 0;
   let mbaaCount = 0;
   let maleCount = 0;
   let femaleCount = 0;
+  let otherGenderCount = 0;
+  let firstYearCount = 0;
+  let secondYearCount = 0;
+  let passoutCount = 0;
+  let otherYearCount = 0;
 
   studentsList.forEach(student => {
-    const email = student.email.toLowerCase();
-    if (email.includes('.mbaa')) {
+    // Cohort
+    if (student.program === 'MBA Analytics') {
       mbaaCount++;
-    } else if (email.includes('.mba')) {
+    } else if (student.program === 'MBA') {
       mbaCount++;
     } else {
-      // Fallback distribution
-      const charSum = student.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      if (charSum % 2 === 0) {
+      const email = student.email.toLowerCase();
+      if (email.includes('.mbaa')) {
         mbaaCount++;
-      } else {
+      } else if (email.includes('.mba')) {
         mbaCount++;
+      } else {
+        // Fallback distribution
+        const charSum = student.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        if (charSum % 2 === 0) {
+          mbaaCount++;
+        } else {
+          mbaCount++;
+        }
       }
     }
 
-    const nameLower = student.name.toLowerCase();
-    const femaleNames = ['priya', 'sharma', 'aarti', 'neha', 'divya', 'ananya', 'sneha', 'riddhi', 'aditi', 'pooja', 'kiran', 'shreya'];
-    if (femaleNames.some(n => nameLower.includes(n))) {
+    // Gender
+    if (student.gender === 'Male') {
+      maleCount++;
+    } else if (student.gender === 'Female') {
       femaleCount++;
+    } else if (student.gender === 'Other' || student.gender === 'Prefer not to say') {
+      otherGenderCount++;
     } else {
-      const charSum = student.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      if (charSum % 3 === 0) {
+      // Fallback distribution
+      const nameLower = student.name.toLowerCase();
+      const femaleNames = ['priya', 'sharma', 'aarti', 'neha', 'divya', 'ananya', 'sneha', 'riddhi', 'aditi', 'pooja', 'kiran', 'shreya'];
+      if (femaleNames.some(n => nameLower.includes(n))) {
         femaleCount++;
       } else {
-        maleCount++;
+        const charSum = student.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        if (charSum % 3 === 0) {
+          femaleCount++;
+        } else {
+          maleCount++;
+        }
       }
+    }
+
+    // Year
+    if (student.year === '1st Year') {
+      firstYearCount++;
+    } else if (student.year === '2nd Year') {
+      secondYearCount++;
+    } else if (student.year === 'Passout') {
+      passoutCount++;
+    } else {
+      otherYearCount++;
     }
   });
 
@@ -479,10 +512,16 @@ export default function AdminDashboard() {
 
   const genderData = [
     { name: 'Male', value: maleCount, color: '#6366f1' },
-    { name: 'Female', value: femaleCount, color: '#ec4899' }
+    { name: 'Female', value: femaleCount, color: '#ec4899' },
+    ...(otherGenderCount > 0 ? [{ name: 'Other/Unspecified', value: otherGenderCount, color: '#a855f7' }] : [])
   ];
 
-  const mentorRatio = mentors.length > 0 ? (studentsList.length / mentors.length).toFixed(1) : studentsList.length.toFixed(1);
+  const yearDistributionData = [
+    { name: '1st Year', value: firstYearCount, color: '#f59e0b' },
+    { name: '2nd Year', value: secondYearCount, color: '#3b82f6' },
+    { name: 'Passout', value: passoutCount, color: '#10b981' },
+    ...(otherYearCount > 0 ? [{ name: 'Other', value: otherYearCount, color: '#6b7280' }] : [])
+  ];
 
   const envAdmins = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || 'teamcorpus@iimkashipur.ac.in')
     .split(',')
@@ -605,8 +644,8 @@ export default function AdminDashboard() {
           {/* Recharts Panels */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* Cohort & Student-Mentor Ratio */}
-            <div className="glass-panel p-6 rounded-2xl border-white/5 flex flex-col justify-between space-y-6">
+            {/* Cohort Distribution */}
+            <div className="glass-panel p-6 rounded-2xl border-white/5 flex flex-col justify-start space-y-6">
               <div>
                 <h3 className="text-sm font-black text-zinc-300 uppercase tracking-wider mb-4">Cohort Distribution</h3>
                 <div className="space-y-4">
@@ -631,19 +670,9 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
-
-              <div className="bg-zinc-950/60 border border-white/5 rounded-xl p-4 flex items-center justify-between">
-                <div>
-                  <span className="text-[9px] uppercase font-black text-zinc-500 tracking-wider">Student-Mentor Ratio</span>
-                  <span className="text-2xl font-black text-white block mt-0.5">{mentorRatio} : 1</span>
-                </div>
-                <div className="text-[10px] text-zinc-500 leading-tight text-right max-w-[130px]">
-                  Average number of students assigned per registered mentor.
-                </div>
-              </div>
             </div>
 
-            {/* Gender wise bifurcation Pie Chart */}
+            {/* Gender Distribution Pie Chart */}
             <div className="glass-panel p-6 rounded-2xl border-white/5 flex flex-col justify-between">
               <h3 className="text-sm font-black text-zinc-300 uppercase tracking-wider mb-4">Gender Distribution</h3>
               <div className="h-48 flex justify-center items-center">
@@ -669,17 +698,28 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Competition Category Distribution Bar Chart */}
+            {/* Year-wise Distribution Pie Chart */}
             <div className="glass-panel p-6 rounded-2xl border-white/5 flex flex-col justify-between">
-              <h3 className="text-sm font-black text-zinc-300 uppercase tracking-wider mb-6">Competitions Category Split</h3>
-              <div className="h-48">
+              <h3 className="text-sm font-black text-zinc-300 uppercase tracking-wider mb-4">Year-wise Distribution</h3>
+              <div className="h-48 flex justify-center items-center">
                 <ResponsiveContainer width="100%" height="100%">
-                  <RechartsBarChart data={categoryDistributionData}>
-                    <XAxis dataKey="category" stroke="#52525b" fontSize={9} />
-                    <YAxis stroke="#52525b" fontSize={9} />
+                  <PieChart>
+                    <Pie
+                      data={yearDistributionData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={65}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {yearDistributionData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
                     <Tooltip contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', color: '#f4f4f5', fontSize: '11px' }} />
-                    <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                  </RechartsBarChart>
+                    <Legend verticalAlign="bottom" height={36} iconType="circle" iconSize={8} formatter={(value) => <span className="text-[10px] text-zinc-400 font-semibold">{value}</span>} />
+                  </PieChart>
                 </ResponsiveContainer>
               </div>
             </div>
