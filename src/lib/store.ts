@@ -87,6 +87,8 @@ const DEMO_STUDENT: Student = {
   year: '1st Year',
   resume: 'aravind_resume_consulting.pdf',
   linkedin: 'https://linkedin.com/in/aravind-swamy-iim',
+  gender: 'Male',
+  roll_number: '26MBA001',
   interests: ['Consulting', 'Product', 'Marketing'],
   badges: ['Case Champion', 'First Competition'],
   wins: 1,
@@ -250,6 +252,8 @@ export const useStore = create<AppState>((set, get) => {
             year: newStudent.year,
             resume: newStudent.resume,
             linkedin: newStudent.linkedin,
+            gender: newStudent.gender,
+            roll_number: newStudent.roll_number,
             interests: newStudent.interests || [],
             badges: newStudent.badges,
             wins: newStudent.wins,
@@ -275,6 +279,8 @@ export const useStore = create<AppState>((set, get) => {
             program: student.program,
             year: student.year,
             linkedin: student.linkedin,
+            gender: student.gender,
+            roll_number: student.roll_number,
             wins: student.wins,
             shortlists: student.shortlists,
             participations: student.participations,
@@ -1071,11 +1077,15 @@ export const checkProfileIncomplete = (student: any) => {
   const program = student.program?.trim() || '';
   const year = student.year?.trim() || '';
   const linkedin = student.linkedin?.trim() || '';
+  const gender = student.gender?.trim() || '';
+  const roll_number = student.roll_number?.trim() || '';
 
   const hasValidName = name.length > 0;
   const hasValidProgram = ['MBA', 'MBA Analytics'].includes(program);
   const hasValidYear = ['1st Year', '2nd Year', 'Passout'].includes(year);
   const hasValidLinkedin = linkedin.length > 0;
+  const hasValidGender = ['Male', 'Female', 'Other', 'Prefer not to say'].includes(gender);
+  const hasValidRollNumber = roll_number.length > 0;
 
-  return !(hasValidName && hasValidProgram && hasValidYear && hasValidLinkedin);
+  return !(hasValidName && hasValidProgram && hasValidYear && hasValidLinkedin && hasValidGender && hasValidRollNumber);
 };

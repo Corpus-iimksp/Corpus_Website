@@ -82,6 +82,8 @@ export default function StudentPortal() {
   const [profileProgram, setProfileProgram] = useState(['MBA', 'MBA Analytics'].includes(currentStudent?.program || '') ? (currentStudent?.program || '') : '');
   const [profileYear, setProfileYear] = useState(['1st Year', '2nd Year', 'Passout'].includes(currentStudent?.year || '') ? (currentStudent?.year || '') : '');
   const [profileLinkedin, setProfileLinkedin] = useState(currentStudent?.linkedin || '');
+  const [profileGender, setProfileGender] = useState(currentStudent?.gender || '');
+  const [profileRollNumber, setProfileRollNumber] = useState(currentStudent?.roll_number || '');
 
   const [profileWins, setProfileWins] = useState(currentStudent?.wins || 0);
   const [profileShortlists, setProfileShortlists] = useState(currentStudent?.shortlists || 0);
@@ -94,6 +96,8 @@ export default function StudentPortal() {
       setProfileProgram(['MBA', 'MBA Analytics'].includes(currentStudent.program || '') ? (currentStudent.program || '') : '');
       setProfileYear(['1st Year', '2nd Year', 'Passout'].includes(currentStudent.year || '') ? (currentStudent.year || '') : '');
       setProfileLinkedin(currentStudent.linkedin || '');
+      setProfileGender(currentStudent.gender || '');
+      setProfileRollNumber(currentStudent.roll_number || '');
       setProfileWins(currentStudent.wins || 0);
       setProfileShortlists(currentStudent.shortlists || 0);
       setProfileParticipations(currentStudent.participations || 0);
@@ -170,8 +174,8 @@ export default function StudentPortal() {
     e.preventDefault();
     if (!currentStudent) return;
 
-    if (!profileName.trim() || !profileProgram || !profileYear || !profileLinkedin.trim()) {
-      alert("Please fill in all mandatory fields (Name, Degree Program, Year, and LinkedIn profile).");
+    if (!profileName.trim() || !profileProgram || !profileYear || !profileLinkedin.trim() || !profileGender || !profileRollNumber.trim()) {
+      alert("Please fill in all mandatory fields (Name, Roll Number, Gender, Degree Program, Year, and LinkedIn profile).");
       return;
     }
 
@@ -182,6 +186,8 @@ export default function StudentPortal() {
       program: profileProgram,
       year: profileYear,
       linkedin: profileLinkedin.trim(),
+      gender: profileGender,
+      roll_number: profileRollNumber.trim(),
       interests: [],
       resume: '',
       wins: profileWins,
@@ -626,7 +632,7 @@ export default function StudentPortal() {
               <span className="font-extrabold block text-sm mb-1 uppercase tracking-wider text-amber-400">
                 ⚠️ Complete Profile Registration Required
               </span>
-              Please fill out all mandatory fields (Name, Degree Program, Year, and LinkedIn profile) to unlock the full platform features. Access to other sections is restricted until registration is complete.
+              Please fill out all mandatory fields (Name, Roll Number, Gender, Degree Program, Year, and LinkedIn profile) to unlock the full platform features. Access to other sections is restricted until registration is complete.
             </div>
           )}
 
@@ -635,18 +641,46 @@ export default function StudentPortal() {
           </h3>
 
           <form onSubmit={handleProfileSave} className="space-y-4 text-xs">
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Full Name</label>
-              <input
-                type="text"
-                required
-                value={profileName}
-                onChange={(e) => setProfileName(e.target.value)}
-                className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/50"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Roll Number</label>
+                <input
+                  type="text"
+                  required
+                  value={profileRollNumber}
+                  onChange={(e) => setProfileRollNumber(e.target.value)}
+                  placeholder="e.g. 26MBA001"
+                  className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Gender</label>
+                <select
+                  required
+                  value={profileGender}
+                  onChange={(e) => setProfileGender(e.target.value)}
+                  className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/50"
+                >
+                  <option value="" disabled hidden>Select gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                  <option value="Prefer not to say">Prefer not to say</option>
+                </select>
+              </div>
               <div>
                 <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Degree Program</label>
                 <select
@@ -674,17 +708,18 @@ export default function StudentPortal() {
                   <option value="Passout">Passout</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">LinkedIn Profile</label>
-                <input
-                  type="text"
-                  required
-                  value={profileLinkedin}
-                  onChange={(e) => setProfileLinkedin(e.target.value)}
-                  placeholder="linkedin.com/in/... or username"
-                  className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/50"
-                />
-              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">LinkedIn Profile</label>
+              <input
+                type="text"
+                required
+                value={profileLinkedin}
+                onChange={(e) => setProfileLinkedin(e.target.value)}
+                placeholder="linkedin.com/in/... or username"
+                className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/50"
+              />
             </div>
 
             <button

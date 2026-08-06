@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   program TEXT,
   year TEXT,
   linkedin TEXT,
+  gender TEXT,
+  roll_number TEXT,
   badges TEXT[],
   wins INTEGER DEFAULT 0,
   shortlists INTEGER DEFAULT 0,

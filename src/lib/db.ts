@@ -10,6 +10,8 @@ export interface Student {
   year: string;
   resume?: string;
   linkedin: string;
+  gender?: string;
+  roll_number?: string;
   interests?: string[];
   badges: string[];
   wins: number;
@@ -156,6 +158,8 @@ export interface UserProfile {
   year?: string;
   resume?: string;
   linkedin?: string;
+  gender?: string;
+  roll_number?: string;
   interests?: string[];
   badges?: string[];
   wins?: number;
