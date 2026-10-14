@@ -1,27 +1,25 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore, checkProfileIncomplete } from '@/lib/store';
 import { useRouter } from 'next/navigation';
-import { WinningDeck } from '@/lib/db';
+import { Framework } from '@/lib/db';
 import { 
-  BookOpen, 
-  HelpCircle, 
-  Layers, 
-  FileText, 
-  Play, 
-  CheckCircle, 
   ArrowRight, 
-  Download, 
-  Sparkles,
-  Search,
-  ThumbsUp,
-  BrainCircuit,
-  ExternalLink
+  Search, 
+  BrainCircuit, 
+  ExternalLink, 
+  X, 
+  BookOpen, 
+  Layers,
+  ChevronDown,
+  Check,
+  Building2,
+  Trophy
 } from 'lucide-react';
 
 export default function LearningHub() {
-  const { addSystemNotification, winningDecks, frameworks, quizzes, updateWinningDeck, currentStudent } = useStore();
+  const { winningDecks, frameworks, currentStudent } = useStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -30,42 +28,58 @@ export default function LearningHub() {
     }
   }, [currentStudent, router]);
 
-  const [activeTab, setActiveTab] = useState<'frameworks' | 'decks' | 'practice'>('frameworks');
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'frameworks' | 'decks'>('frameworks');
+  const [selectedFramework, setSelectedFramework] = useState<Framework | null>(null);
 
-  // Dynamic unique tags across all winning decks
-  const allTags = Array.from(
-    new Set((winningDecks || []).flatMap((deck) => deck.tags || []))
+  // Search & Dropdown Filter States for Slide Decks
+  const [deckSearchQuery, setDeckSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Distinct list of Companies and Competitions
+  const distinctCompanies = Array.from(
+    new Set((winningDecks || []).map((d) => d.company?.trim()).filter(Boolean) as string[])
   ).sort();
 
-  // Filtered winning decks based on selectedTag
-  const filteredDecks = selectedTag
-    ? (winningDecks || []).filter((deck) => deck.tags?.includes(selectedTag))
-    : (winningDecks || []);
-  
-  // Practice Quiz States
-  const [selectedPractice, setSelectedPractice] = useState<string | null>(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
-  const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
-  const [practiceScore, setPracticeScore] = useState<number | null>(null);
-  const [practiceCompleted, setPracticeCompleted] = useState<boolean>(false);
+  const distinctCompetitions = Array.from(
+    new Set((winningDecks || []).map((d) => d.competition?.trim()).filter(Boolean) as string[])
+  ).sort();
 
-  const handleDownload = (deck: WinningDeck) => {
-    addSystemNotification({
-      id: `download-${Date.now()}`,
-      title: '📥 Deck Downloaded',
-      message: `Successfully downloaded template package for "${deck.title}".`,
-      type: 'system',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
-    alert(`Downloading PPT Template: "${deck.title}" has started! Check your downloads.`);
-  };
+  const q = deckSearchQuery.toLowerCase().trim();
+
+  const matchingCompanies = distinctCompanies.filter((c) =>
+    !q || c.toLowerCase().includes(q)
+  );
+
+  const matchingCompetitions = distinctCompetitions.filter((c) =>
+    !q || c.toLowerCase().includes(q)
+  );
+
+  // Filtered winning decks based on search query matching company or competition title
+  const filteredDecks = (winningDecks || []).filter((deck) => {
+    if (!q) return true;
+    const matchCompany = deck.company ? deck.company.toLowerCase().includes(q) : false;
+    const matchComp = deck.competition ? deck.competition.toLowerCase().includes(q) : false;
+    return matchCompany || matchComp;
+  });
 
   return (
-    <div className="relative min-h-screen bg-transparent text-zinc-100 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="relative flex-1 w-full bg-transparent text-zinc-100 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       
       {/* Background blur overlays */}
-      <div className="absolute top-1/3 left-1/3 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[140px] pointer-events-none"></div>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/3 left-1/3 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[140px]"></div>
+      </div>
 
       {/* Main Title Banner */}
       <div className="border-b border-white/5 pb-8 mb-8">
@@ -74,7 +88,7 @@ export default function LearningHub() {
           Case Competition Learning Hub
         </h1>
         <p className="text-xs text-zinc-500 mt-1">
-          Study visual frameworks, download templates of national winning decks, and practice mock business case studies.
+          Study visual frameworks and access templates of national winning decks.
         </p>
       </div>
 
@@ -91,16 +105,6 @@ export default function LearningHub() {
           🗂️ Interactive Frameworks
         </button>
         <button
-          onClick={() => setActiveTab('practice')}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all shrink-0 ${
-            activeTab === 'practice' 
-              ? 'border-indigo-500 text-indigo-300 bg-indigo-500/5' 
-              : 'border-transparent text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          🧩 Mock Case Practice
-        </button>
-        <button
           onClick={() => setActiveTab('decks')}
           className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all shrink-0 ${
             activeTab === 'decks' 
@@ -114,136 +118,259 @@ export default function LearningHub() {
 
       {/* Tab Panels */}
       
-
-
       {/* 2. INTERACTIVE FRAMEWORKS */}
       {activeTab === 'frameworks' && (
         <div>
           <div className="text-center max-w-xl mx-auto mb-8">
-            <h3 className="text-lg font-bold text-zinc-200">Consulting Frameworks Flashcards</h3>
-            <p className="text-xs text-zinc-500 mt-1">Hover over or tap a card to flip it and view the structural analysis guide.</p>
+            <h3 className="text-lg font-bold text-zinc-200">Consulting Frameworks</h3>
+            <p className="text-xs text-zinc-500 mt-1">Select any framework to view comprehensive strategic analysis, issue trees, and diagnostic guidance.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {frameworks.map((fw, idx) => (
-              <div 
-                key={idx}
-                className="h-64 [perspective:1000px] group cursor-pointer"
-              >
-                <div className="relative w-full h-full duration-500 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]">
-                  
-                  {/* Front Side */}
-                  <div className="absolute w-full h-full p-6 rounded-2xl border border-white/5 bg-zinc-950/80 [backface-visibility:hidden] flex flex-col justify-between">
-                    <div>
-                      <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">FRAMEWORK</span>
-                      <h4 className="text-lg font-black text-white">{fw.name}</h4>
-                      <p className="text-xs text-zinc-400 mt-3 leading-relaxed">
-                        {fw.front}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between mt-4 border-t border-white/5 pt-3">
-                      <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-wider">
-                        {fw.subtitle}
+          {frameworks.length === 0 ? (
+            <div className="text-center py-12 text-zinc-500 border border-dashed border-white/5 rounded-2xl">
+              No frameworks available right now.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {frameworks.map((fw, idx) => (
+                <div 
+                  key={fw.id || idx}
+                  onClick={() => setSelectedFramework(fw)}
+                  className="glass-card rounded-2xl p-6 border border-white/5 hover:border-indigo-500/40 hover:bg-zinc-900/60 transition-all duration-300 flex flex-col justify-between cursor-pointer group hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/10"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">
+                        FRAMEWORK
                       </span>
-                      <span className="text-[10px] text-zinc-600 font-bold flex items-center gap-1">
-                        Flip Card <ArrowRight className="w-3 h-3" />
-                      </span>
+                      {fw.subtitle && (
+                        <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 uppercase tracking-wider">
+                          {fw.subtitle}
+                        </span>
+                      )}
                     </div>
+                    <h4 className="text-lg font-black text-white group-hover:text-indigo-200 transition-colors">
+                      {fw.name}
+                    </h4>
+                    <p className="text-xs text-zinc-400 mt-2.5 leading-relaxed line-clamp-3">
+                      {fw.front}
+                    </p>
                   </div>
 
-                  {/* Back Side */}
-                  <div className="absolute w-full h-full p-6 rounded-2xl border border-indigo-500/20 bg-zinc-900 [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col justify-between">
-                    <div>
-                      <span className="text-[10px] text-indigo-400 uppercase font-black tracking-widest block mb-1">Diagnostic Structure</span>
-                      <div className="text-xs text-zinc-300 leading-relaxed font-mono whitespace-pre-wrap mt-2 select-text">
-                        {fw.back}
-                      </div>
-                    </div>
-                    
-                    <span className="text-[9px] text-zinc-500 text-right font-semibold">
-                      Double check logic with MECE
-                    </span>
+                  <div className="mt-5 pt-4 border-t border-white/5 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedFramework(fw);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/25 group-hover:bg-indigo-500 group-hover:text-white transition-all shadow-sm"
+                    >
+                      <span>Know in Detail</span>
+                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                    <span className="text-[10px] text-zinc-500 font-medium">Click to view</span>
                   </div>
-
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {/* 3. WINNING DECK REPOSITORY */}
       {activeTab === 'decks' && (
         <div className="space-y-6">
-          {/* Tag Filters */}
-          {allTags.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 mb-2 bg-zinc-950/40 p-4 border border-white/5 rounded-2xl backdrop-blur-md">
-              <span className="text-xs text-zinc-400 font-bold uppercase mr-2 flex items-center gap-1.5">
-                <Search className="w-3.5 h-3.5 text-indigo-400" /> Filter by Tag:
-              </span>
-              <button
-                onClick={() => setSelectedTag(null)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                  selectedTag === null
-                    ? 'bg-indigo-500 border-indigo-500 text-white shadow-md shadow-indigo-500/10'
-                    : 'bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200 hover:border-white/10'
-                }`}
-              >
-                All Decks
-              </button>
-              {allTags.map((tag) => (
+          {/* Search & Filter Dropdown (Combobox with searchable typing & dropdown options) */}
+          <div className="relative w-full max-w-xl" ref={dropdownRef}>
+            <div className="relative flex items-center">
+              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 pointer-events-none" />
+              <input
+                type="text"
+                value={deckSearchQuery}
+                onFocus={() => setIsDropdownOpen(true)}
+                onChange={(e) => {
+                  setDeckSearchQuery(e.target.value);
+                  setIsDropdownOpen(true);
+                }}
+                placeholder="Filter by company or competition title (type or pick from dropdown)..."
+                className="w-full bg-zinc-950/70 border border-white/10 rounded-2xl pl-10 pr-20 py-3 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 transition-all backdrop-blur-md shadow-lg"
+              />
+              <div className="absolute right-3 flex items-center gap-1.5">
+                {deckSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeckSearchQuery('');
+                      setIsDropdownOpen(false);
+                    }}
+                    className="p-1 rounded-md text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
+                    title="Clear filter"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <button
-                  key={tag}
-                  onClick={() => setSelectedTag(tag)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                    selectedTag === tag
-                      ? 'bg-indigo-500 border-indigo-500 text-white shadow-md shadow-indigo-500/10'
-                      : 'bg-zinc-900 border-white/5 text-zinc-400 hover:text-zinc-200 hover:border-white/10'
-                  }`}
+                  type="button"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition-colors"
+                  title="Toggle suggestions dropdown"
                 >
-                  #{tag}
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180 text-indigo-400' : ''}`} />
                 </button>
-              ))}
+              </div>
             </div>
-          )}
+
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <div className="absolute left-0 right-0 mt-2 z-30 bg-zinc-950/95 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl overflow-hidden max-h-80 overflow-y-auto divide-y divide-white/5 animate-in fade-in zoom-in-95 duration-150">
+                {/* All Decks Option */}
+                <div className="p-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeckSearchQuery('');
+                      setIsDropdownOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all text-left ${
+                      !deckSearchQuery.trim()
+                        ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                        : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+                    }`}
+                  >
+                    <span>✨ All Decks ({winningDecks.length})</span>
+                    {!deckSearchQuery.trim() && <Check className="w-3.5 h-3.5 text-indigo-400" />}
+                  </button>
+                </div>
+
+                {/* Companies Section */}
+                {matchingCompanies.length > 0 && (
+                  <div className="p-2">
+                    <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-amber-400/80 flex items-center gap-1.5">
+                      <Building2 className="w-3 h-3" /> Filter by Company ({matchingCompanies.length})
+                    </div>
+                    <div className="space-y-0.5 mt-1">
+                      {matchingCompanies.map((comp) => {
+                        const isSelected = deckSearchQuery.toLowerCase().trim() === comp.toLowerCase().trim();
+                        const count = (winningDecks || []).filter(d => d.company?.toLowerCase().trim() === comp.toLowerCase().trim()).length;
+                        return (
+                          <button
+                            key={`comp-${comp}`}
+                            type="button"
+                            onClick={() => {
+                              setDeckSearchQuery(comp);
+                              setIsDropdownOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all text-left ${
+                              isSelected
+                                ? 'bg-amber-500/15 text-amber-300 font-bold border border-amber-500/30'
+                                : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+                            }`}
+                          >
+                            <span className="truncate">{comp}</span>
+                            <span className="text-[10px] text-zinc-500 font-medium px-2 py-0.5 rounded bg-zinc-900 border border-white/5 shrink-0 ml-2">
+                              {count} {count === 1 ? 'deck' : 'decks'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Competitions Section */}
+                {matchingCompetitions.length > 0 && (
+                  <div className="p-2">
+                    <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-indigo-400/80 flex items-center gap-1.5">
+                      <Trophy className="w-3 h-3" /> Filter by Competition ({matchingCompetitions.length})
+                    </div>
+                    <div className="space-y-0.5 mt-1">
+                      {matchingCompetitions.map((competition) => {
+                        const isSelected = deckSearchQuery.toLowerCase().trim() === competition.toLowerCase().trim();
+                        const count = (winningDecks || []).filter(d => d.competition?.toLowerCase().trim() === competition.toLowerCase().trim()).length;
+                        return (
+                          <button
+                            key={`competition-${competition}`}
+                            type="button"
+                            onClick={() => {
+                              setDeckSearchQuery(competition);
+                              setIsDropdownOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all text-left ${
+                              isSelected
+                                ? 'bg-indigo-500/15 text-indigo-300 font-bold border border-indigo-500/30'
+                                : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+                            }`}
+                          >
+                            <span className="truncate">{competition}</span>
+                            <span className="text-[10px] text-zinc-500 font-medium px-2 py-0.5 rounded bg-zinc-900 border border-white/5 shrink-0 ml-2">
+                              {count} {count === 1 ? 'deck' : 'decks'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* If no exact match in dropdown */}
+                {matchingCompanies.length === 0 && matchingCompetitions.length === 0 && (
+                  <div className="p-4 text-center text-xs text-zinc-500">
+                    No exact company or competition title matches &ldquo;{deckSearchQuery}&rdquo;. Searching across decks by keyword...
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {filteredDecks.length === 0 ? (
             <div className="text-center py-12 text-zinc-500 border border-dashed border-white/5 rounded-2xl">
-              No winning decks found matching the selected tag filter.
+              No winning decks found matching &ldquo;{deckSearchQuery}&rdquo;.
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {filteredDecks.map(deck => (
-                <div key={deck.id} className="glass-card rounded-2xl overflow-hidden flex flex-col justify-between border border-white/5">
+                <div key={deck.id} className="glass-card rounded-2xl overflow-hidden flex flex-col justify-between border border-white/5 hover:border-indigo-500/30 transition-all duration-300 group hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/5">
                   <div>
-                    <div className="relative h-40 w-full bg-zinc-900 border-b border-white/5">
+                    <div className="relative h-44 w-full bg-zinc-900 border-b border-white/5 overflow-hidden">
                       <img
                         src={deck.previewImage}
                         alt={deck.title}
-                        className="w-full h-full object-cover opacity-60 hover:opacity-85 transition-opacity"
+                        className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300"
                       />
+                      <div className="absolute top-3 right-3">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-black/75 backdrop-blur-md text-zinc-300 border border-white/10 shadow-sm">
+                          {deck.year}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="p-5">
-                      <span className="text-[10px] text-zinc-500 font-bold uppercase block mb-1">
-                        {deck.competition}
-                      </span>
-                      <h3 className="font-extrabold text-sm text-zinc-200 leading-snug mb-2">
-                        {deck.title}
-                      </h3>
-                      <span className="text-xs text-zinc-400 font-medium">Team: {deck.teamName}</span>
-
-                      <div className="flex flex-wrap gap-1 mt-4">
-                        {deck.tags?.map((tag: string, i: number) => (
-                          <span key={i} className="px-2 py-0.5 rounded bg-zinc-900 text-[10px] font-medium border border-white/5 text-zinc-300">
-                            #{tag}
+                    <div className="p-5 space-y-3">
+                      {/* Company name & Competition title in BOLD and LARGE text */}
+                      <div>
+                        {deck.company && (
+                          <span className="text-xs font-black uppercase tracking-wider text-amber-400 block mb-1">
+                            {deck.company}
                           </span>
-                        ))}
+                        )}
+                        <h3 className="font-black text-lg text-white leading-snug group-hover:text-indigo-200 transition-colors">
+                          {deck.competition}
+                        </h3>
+                      </div>
+
+                      {/* Presentation title in smaller text and in grey colour */}
+                      <p className="text-xs text-zinc-400 font-medium leading-relaxed">
+                        {deck.title}
+                      </p>
+
+                      {/* Team Name */}
+                      <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-zinc-500">
+                        <span>Team: <strong className="text-zinc-300 font-semibold">{deck.teamName}</strong></span>
                       </div>
                     </div>
                   </div>
 
+                  {/* Action / PPT Link */}
                   <div className="p-4 border-t border-white/5 bg-zinc-950/40 flex flex-col gap-2">
                     <a
                       href={deck.fileUrl && deck.fileUrl !== '#' ? deck.fileUrl : undefined}
@@ -251,7 +378,7 @@ export default function LearningHub() {
                       rel="noopener noreferrer"
                       className={`px-3 py-2 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-1.5 transition-colors text-center ${
                         deck.fileUrl && deck.fileUrl !== '#' 
-                          ? 'bg-indigo-500 hover:bg-indigo-600' 
+                          ? 'bg-indigo-500 hover:bg-indigo-600 shadow-sm' 
                           : 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-white/5'
                       }`}
                       onClick={(e) => {
@@ -286,267 +413,72 @@ export default function LearningHub() {
         </div>
       )}
 
-      {/* 4. MOCK CASE PRACTICE (MCQ Quizzes) */}
-      {activeTab === 'practice' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-xs">
-          
-          {/* Side Select Column */}
-          <div className="space-y-3">
-            <h3 className="font-bold text-sm text-zinc-300 uppercase tracking-widest mb-2">Practice Quizzes</h3>
-            {quizzes.map((quiz) => {
-              return (
-                <button
-                  key={quiz.id}
-                  onClick={() => {
-                    setSelectedPractice(quiz.id);
-                    setCurrentQuestionIndex(0);
-                    setUserAnswers({});
-                    setPracticeScore(null);
-                    setPracticeCompleted(false);
-                  }}
-                  className={`w-full p-4 rounded-xl border text-left flex items-center justify-between transition-all ${
-                    selectedPractice === quiz.id
-                      ? 'bg-indigo-950/20 border-indigo-500/50 text-indigo-300 font-extrabold'
-                      : 'bg-zinc-900/40 border-white/5 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
-                  }`}
-                >
-                  <div>
-                    <h4 className="text-xs font-bold">{quiz.title}</h4>
-                    <span className="text-[9px] text-zinc-500">{(quiz.questions || []).length} MCQs | Frameworks & Strategy</span>
-                  </div>
-                  <Play className="w-4 h-4 shrink-0 text-indigo-400" />
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Quiz Workspace Area */}
-          <div className="lg:col-span-2">
-            {selectedPractice ? (() => {
-              const quiz = quizzes.find(q => q.id === selectedPractice);
-              if (!quiz) return null;
-              const questions = quiz.questions || [];
-              const activeQuestion = questions[currentQuestionIndex];
-              const totalQuestions = questions.length;
-              
-              return (
-                <div className="glass-panel p-6 rounded-2xl border-white/10 space-y-6">
-                  
-                  {/* Header status */}
-                  <div className="flex items-center justify-between border-b border-white/5 pb-3">
-                    <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                      {quiz.title}
-                    </span>
-                    <span className="text-[10px] text-zinc-500 font-mono">
-                      {practiceCompleted ? 'Status: Completed' : `Question ${currentQuestionIndex + 1} of ${totalQuestions}`}
-                    </span>
-                  </div>
-
-                  {!practiceCompleted ? (
-                    // Active Question View
-                    activeQuestion ? (
-                      <div className="space-y-6">
-                        {/* Question text */}
-                        <div>
-                          <span className="text-[10px] font-black text-zinc-500 uppercase tracking-wider block mb-1">
-                            Question {currentQuestionIndex + 1}
-                          </span>
-                          <h3 className="text-sm font-extrabold text-white leading-relaxed">
-                            {activeQuestion.q}
-                          </h3>
-                        </div>
-
-                        {/* Options list */}
-                        <div className="space-y-2.5">
-                          {(activeQuestion.options || []).map((opt, idx) => {
-                            const isSelected = userAnswers[currentQuestionIndex] === idx;
-                            return (
-                              <button
-                                key={idx}
-                                onClick={() => {
-                                  setUserAnswers(prev => ({ ...prev, [currentQuestionIndex]: idx }));
-                                }}
-                                className={`w-full text-left p-3.5 rounded-xl border transition-all text-xs leading-relaxed ${
-                                  isSelected
-                                    ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300 font-bold'
-                                    : 'bg-zinc-900/40 border-white/5 text-zinc-400 hover:bg-zinc-900/60 hover:text-zinc-200'
-                                }`}
-                              >
-                                <span className="inline-block w-5 h-5 rounded-full bg-zinc-900/60 border border-white/10 text-center leading-5 mr-3 text-[10px] font-bold text-zinc-400">
-                                  {String.fromCharCode(65 + idx)}
-                                </span>
-                                {opt}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Navigation Buttons */}
-                        <div className="flex justify-between items-center pt-4 border-t border-white/5">
-                          <button
-                            onClick={() => {
-                              if (currentQuestionIndex > 0) {
-                                setCurrentQuestionIndex(prev => prev - 1);
-                              }
-                            }}
-                            disabled={currentQuestionIndex === 0}
-                            className="px-4 py-2 rounded-xl text-xs font-bold bg-zinc-900 border border-white/5 text-zinc-450 hover:text-zinc-200 disabled:opacity-30 disabled:pointer-events-none transition-all"
-                          >
-                            Previous
-                          </button>
-
-                          {currentQuestionIndex < totalQuestions - 1 ? (
-                            <button
-                              onClick={() => {
-                                if (userAnswers[currentQuestionIndex] !== undefined) {
-                                  setCurrentQuestionIndex(prev => prev + 1);
-                                } else {
-                                  alert('Please select an option to proceed.');
-                                }
-                              }}
-                              disabled={userAnswers[currentQuestionIndex] === undefined}
-                              className="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-500 hover:bg-indigo-600 text-white disabled:opacity-50 disabled:pointer-events-none transition-all"
-                            >
-                              Next Question
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                if (userAnswers[currentQuestionIndex] === undefined) {
-                                  alert('Please select an option to finish.');
-                                  return;
-                                }
-                                
-                                // Calculate score
-                                let finalScore = 0;
-                                questions.forEach((q, idx) => {
-                                  if (userAnswers[idx] === q.correctIndex) {
-                                    finalScore += 1;
-                                  }
-                                });
-                                
-                                setPracticeScore(finalScore);
-                                setPracticeCompleted(true);
-                                
-                                addSystemNotification({
-                                  id: `quiz-complete-${Date.now()}`,
-                                  title: '📊 Practice Session Complete',
-                                  message: `You completed ${quiz.title} with score ${finalScore}/${totalQuestions}.`,
-                                  type: 'system',
-                                  time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                });
-                              }}
-                              disabled={userAnswers[currentQuestionIndex] === undefined}
-                              className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:pointer-events-none transition-all"
-                            >
-                              Submit Answers
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-zinc-500 py-10 text-center">No questions added in this quiz yet.</div>
-                    )
-                  ) : (
-                    // Results Review View
-                    <div className="space-y-6 animate-in fade-in duration-300">
-                      <div className="text-center p-6 bg-zinc-900/40 border border-white/5 rounded-2xl">
-                        <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Your Final Score</span>
-                        <h2 className="text-4xl font-black text-amber-400 mt-2">
-                          {practiceScore} <span className="text-lg text-zinc-500">/ {totalQuestions}</span>
-                        </h2>
-                        <p className="text-xs text-zinc-400 mt-2 max-w-md mx-auto leading-relaxed">
-                          {practiceScore !== null && practiceScore >= Math.floor(totalQuestions * 0.8) 
-                            ? "Outstanding! You have a strong grasp of case competition structuring and concepts." 
-                            : practiceScore !== null && practiceScore >= Math.floor(totalQuestions * 0.5) 
-                            ? "Good effort! Review the detailed solutions below to sharpen your methodology." 
-                            : "Keep learning! Review the flashcards in Interactive Frameworks and try again."}
-                        </p>
-                      </div>
-
-                      {/* Solutions Detail */}
-                      <div className="space-y-4">
-                        <h4 className="font-bold text-xs text-zinc-300 uppercase tracking-wider mb-2">Question Review & Explanations</h4>
-                        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
-                          {questions.map((q, idx) => {
-                            const userAns = userAnswers[idx];
-                            const isCorrect = userAns === q.correctIndex;
-                            
-                            return (
-                              <div key={idx} className="p-4 bg-zinc-900/20 border border-white/5 rounded-xl space-y-2 text-left">
-                                <div className="flex justify-between items-start gap-2">
-                                  <h5 className="font-bold text-xs text-zinc-200">
-                                    {idx + 1}. {q.q}
-                                  </h5>
-                                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase shrink-0 border ${
-                                    isCorrect 
-                                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-                                      : 'bg-red-500/10 border-red-500/20 text-red-400'
-                                  }`}>
-                                    {isCorrect ? 'Correct' : 'Incorrect'}
-                                  </span>
-                                </div>
-
-                                <div className="text-[11px] space-y-1">
-                                  <p className="text-zinc-500">
-                                    Your answer: <span className={isCorrect ? "text-emerald-400" : "text-red-400"}>
-                                      {q.options[userAns] || 'None'}
-                                    </span>
-                                  </p>
-                                  {!isCorrect && (
-                                    <p className="text-zinc-500">
-                                      Correct answer: <span className="text-emerald-400">{q.options[q.correctIndex]}</span>
-                                    </p>
-                                  )}
-                                </div>
-
-                                <p className="text-[11px] text-zinc-400 leading-relaxed border-t border-white/5 pt-2 mt-2 font-mono">
-                                  💡 {q.feedback}
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Reset button */}
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => {
-                            setCurrentQuestionIndex(0);
-                            setUserAnswers({});
-                            setPracticeScore(null);
-                            setPracticeCompleted(false);
-                          }}
-                          className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-500 hover:bg-indigo-600 text-white transition-colors"
-                        >
-                          Restart Practice
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedPractice(null);
-                            setPracticeScore(null);
-                            setPracticeCompleted(false);
-                          }}
-                          className="px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-900 border border-white/5 text-zinc-400 hover:text-zinc-200 transition-colors"
-                        >
-                          Choose Other Practice
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
+      {/* Framework Detailed Explanation Modal Popup */}
+      {selectedFramework && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setSelectedFramework(null)}
+        >
+          <div 
+            className="glass-panel w-full max-w-2xl max-h-[85vh] rounded-2xl border border-white/10 p-6 sm:p-8 shadow-2xl relative flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-white/5 pb-4 mb-5 shrink-0">
+              <div className="space-y-1 pr-6">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] uppercase font-black tracking-widest text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20">
+                    {selectedFramework.subtitle || 'Consulting Framework'}
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-semibold">Strategic Methodology</span>
                 </div>
-              );
-            })() : (
-              <div className="glass-panel p-12 rounded-2xl border-white/5 text-center flex flex-col items-center justify-center">
-                <BrainCircuit className="w-10 h-10 text-zinc-600 mb-2" />
-                <h4 className="font-bold text-sm text-zinc-400">Select a practice set to start the mock challenge.</h4>
-                <p className="text-xs text-zinc-500 mt-1">Test your framework knowledge across profit diagnostics, market entry, product-specs, and growth roadmaps.</p>
+                <h2 className="text-2xl font-black text-white mt-1">
+                  {selectedFramework.name}
+                </h2>
               </div>
-            )}
-          </div>
+              
+              <button
+                onClick={() => setSelectedFramework(null)}
+                className="p-1.5 rounded-lg bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                aria-label="Close modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
+            {/* Scrollable Content Body */}
+            <div className="space-y-6 overflow-y-auto pr-2">
+              {/* Executive Overview */}
+              <div>
+                <h3 className="text-xs uppercase font-bold text-zinc-400 tracking-wider mb-2 flex items-center gap-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-indigo-400" /> Executive Overview
+                </h3>
+                <p className="text-sm text-zinc-300 leading-relaxed bg-zinc-900/50 p-4 rounded-xl border border-white/5">
+                  {selectedFramework.front}
+                </p>
+              </div>
+
+              {/* Detailed Diagnostic Structure */}
+              <div>
+                <h3 className="text-xs uppercase font-bold text-zinc-400 tracking-wider mb-2 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-indigo-400" /> Detailed Explanation & Diagnostic Structure
+                </h3>
+                <div className="bg-zinc-950/80 p-5 rounded-xl border border-indigo-500/20 font-mono text-xs text-zinc-200 whitespace-pre-wrap leading-relaxed select-text shadow-inner">
+                  {selectedFramework.back}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-4 mt-4 border-t border-white/5 flex items-center justify-end shrink-0">
+              <button
+                onClick={() => setSelectedFramework(null)}
+                className="px-5 py-2 rounded-xl text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-white transition-colors border border-white/10"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

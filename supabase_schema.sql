@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS public.winning_decks (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   competition TEXT NOT NULL,
+  company TEXT,
   year TEXT NOT NULL,
   teamname TEXT NOT NULL,
   tags TEXT[],
@@ -82,7 +83,7 @@ CREATE TABLE IF NOT EXISTS public.frameworks (
   subtitle TEXT NOT NULL,
   front TEXT NOT NULL,
   back TEXT NOT NULL,
-  gradient TEXT NOT NULL
+  gradient TEXT DEFAULT 'from-indigo-600 to-purple-600'
 );
 
 

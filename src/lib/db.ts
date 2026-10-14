@@ -94,9 +94,10 @@ export interface WinningDeck {
   id: string;
   title: string;
   competition: string;
+  company?: string;
   year: string;
   teamName: string;
-  tags: string[];
+  tags?: string[];
   fileUrl: string;
   previewImage: string;
 }

@@ -393,8 +393,9 @@ export const useStore = create<AppState>((set, get) => {
             id: deck.id,
             title: deck.title,
             competition: deck.competition,
+            company: deck.company || (deck.tags && deck.tags.length > 0 ? deck.tags[0] : ''),
             year: deck.year,
-            tags: deck.tags,
+            tags: deck.tags || [],
             teamName: deck.teamname !== undefined ? deck.teamname : deck.teamName,
             fileUrl: deck.fileurl !== undefined ? deck.fileurl : deck.fileUrl,
             previewImage: deck.previewimage !== undefined ? deck.previewimage : deck.previewImage
@@ -632,16 +633,23 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     deleteCompetition: async (compId) => {
+      set((state) => ({
+        competitions: state.competitions.filter((c) => c.id !== compId)
+      }));
+      db.deleteCompetition(compId);
+
       if (supabase) {
         try {
           const { error } = await supabase.from('competitions').delete().eq('id', compId);
           if (error) {
             console.error("Supabase deleteCompetition failed:", error);
+            await get().refreshData();
             alert(`Failed to delete competition from Supabase: ${error.message}`);
             return;
           }
         } catch (e) {
           console.error("Supabase deleteCompetition exception:", e);
+          await get().refreshData();
           alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
           return;
         }
@@ -649,7 +657,7 @@ export const useStore = create<AppState>((set, get) => {
       get().addSystemNotification({
         id: `del-comp-${Date.now()}`,
         title: '🗑️ Competition Removed',
-        message: `Competition ID ${compId} was removed from the database.`,
+        message: `Competition was removed successfully.`,
         type: 'system',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       });
@@ -716,16 +724,23 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     deleteMentor: async (mentorId) => {
+      set((state) => ({
+        mentors: state.mentors.filter((m) => m.id !== mentorId)
+      }));
+      db.deleteMentor(mentorId);
+
       if (supabase) {
         try {
           const { error } = await supabase.from('users').delete().eq('id', mentorId);
           if (error) {
             console.error("Supabase delete mentor failed:", error);
+            await get().refreshData();
             alert(`Failed to delete mentor: ${error.message}`);
             return;
           }
         } catch (e) {
           console.error("Supabase delete mentor failed:", e);
+          await get().refreshData();
           alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
           return;
         }
@@ -734,7 +749,7 @@ export const useStore = create<AppState>((set, get) => {
       get().addSystemNotification({
         id: `del-mentor-${Date.now()}`,
         title: '🗑️ Mentor Removed',
-        message: `Mentor profile ID ${mentorId} was removed from the database.`,
+        message: `Mentor profile was removed successfully.`,
         type: 'system',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       });
@@ -860,26 +875,39 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     addWinningDeck: async (deck) => {
+      set((state) => ({
+        winningDecks: [...state.winningDecks.filter(d => d.id !== deck.id), deck]
+      }));
+      db.upsertWinningDeck(deck);
+
       if (supabase) {
         try {
-          const dbDeck = {
+          const dbDeck: any = {
             id: deck.id,
             title: deck.title,
             competition: deck.competition,
+            company: deck.company || '',
             year: deck.year,
-            tags: deck.tags,
+            tags: deck.tags || (deck.company ? [deck.company] : []),
             teamname: deck.teamName,
             fileurl: deck.fileUrl,
             previewimage: deck.previewImage
           };
-          const { error } = await supabase.from('winning_decks').insert(dbDeck);
+          let { error } = await supabase.from('winning_decks').insert(dbDeck);
+          if (error && (error.message?.includes('company') || error.code === 'PGRST204' || error.message?.includes('schema cache'))) {
+            const { company, ...fallbackDeck } = dbDeck;
+            const retryRes = await supabase.from('winning_decks').insert(fallbackDeck);
+            error = retryRes.error;
+          }
           if (error) {
             console.error("Supabase addWinningDeck failed:", error);
+            await get().refreshData();
             alert(`Failed to add winning deck: ${error.message}`);
             return;
           }
         } catch (e) {
           console.error("Supabase addWinningDeck exception:", e);
+          await get().refreshData();
           alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
           return;
         }
@@ -895,26 +923,39 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     updateWinningDeck: async (deck) => {
+      set((state) => ({
+        winningDecks: state.winningDecks.map(d => d.id === deck.id ? deck : d)
+      }));
+      db.upsertWinningDeck(deck);
+
       if (supabase) {
         try {
-          const dbDeck = {
+          const dbDeck: any = {
             id: deck.id,
             title: deck.title,
             competition: deck.competition,
+            company: deck.company || '',
             year: deck.year,
-            tags: deck.tags,
+            tags: deck.tags || (deck.company ? [deck.company] : []),
             teamname: deck.teamName,
             fileurl: deck.fileUrl,
             previewimage: deck.previewImage
           };
-          const { error } = await supabase.from('winning_decks').update(dbDeck).eq('id', deck.id);
+          let { error } = await supabase.from('winning_decks').update(dbDeck).eq('id', deck.id);
+          if (error && (error.message?.includes('company') || error.code === 'PGRST204' || error.message?.includes('schema cache'))) {
+            const { company, ...fallbackDeck } = dbDeck;
+            const retryRes = await supabase.from('winning_decks').update(fallbackDeck).eq('id', deck.id);
+            error = retryRes.error;
+          }
           if (error) {
             console.error("Supabase updateWinningDeck failed:", error);
+            await get().refreshData();
             alert(`Failed to update winning deck: ${error.message}`);
             return;
           }
         } catch (e) {
           console.error("Supabase updateWinningDeck exception:", e);
+          await get().refreshData();
           alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
           return;
         }
@@ -930,16 +971,23 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     deleteWinningDeck: async (deckId) => {
+      set((state) => ({
+        winningDecks: state.winningDecks.filter((d) => d.id !== deckId)
+      }));
+      db.deleteWinningDeck(deckId);
+
       if (supabase) {
         try {
           const { error } = await supabase.from('winning_decks').delete().eq('id', deckId);
           if (error) {
             console.error("Supabase deleteWinningDeck failed:", error);
+            await get().refreshData();
             alert(`Failed to delete winning deck: ${error.message}`);
             return;
           }
         } catch (e) {
           console.error("Supabase deleteWinningDeck exception:", e);
+          await get().refreshData();
           alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
           return;
         }
@@ -947,7 +995,7 @@ export const useStore = create<AppState>((set, get) => {
       get().addSystemNotification({
         id: `del-deck-${Date.now()}`,
         title: '🗑️ Winning Deck Removed',
-        message: `Deck ID ${deckId} has been removed.`,
+        message: `Slide deck was removed successfully.`,
         type: 'system',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       });
@@ -955,56 +1003,106 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     addFramework: async (fw) => {
+      const frameworkItem = {
+        ...fw,
+        gradient: fw.gradient || 'from-indigo-600 to-purple-600'
+      };
+      set((state) => ({
+        frameworks: [...state.frameworks.filter(f => f.id !== frameworkItem.id), frameworkItem]
+      }));
+      db.upsertFramework(frameworkItem);
+
       if (supabase) {
         try {
-          const { error } = await supabase.from('frameworks').insert(fw);
+          const { error } = await supabase.from('frameworks').insert(frameworkItem);
           if (error) {
             console.error("Supabase addFramework failed:", error);
+            await get().refreshData();
             alert(`Failed to add framework: ${error.message}`);
             return;
           }
         } catch (e) {
           console.error("Supabase addFramework exception:", e);
+          await get().refreshData();
           alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
           return;
         }
       }
+      get().addSystemNotification({
+        id: `add-fw-${Date.now()}`,
+        title: '🗂️ Framework Published',
+        message: `"${fw.name}" was published successfully.`,
+        type: 'system',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
       await get().refreshData();
     },
 
     updateFramework: async (fw) => {
+      const frameworkItem = {
+        ...fw,
+        gradient: fw.gradient || 'from-indigo-600 to-purple-600'
+      };
+      set((state) => ({
+        frameworks: state.frameworks.map(f => f.id === frameworkItem.id ? frameworkItem : f)
+      }));
+      db.upsertFramework(frameworkItem);
+
       if (supabase) {
         try {
-          const { error } = await supabase.from('frameworks').update(fw).eq('id', fw.id);
+          const { error } = await supabase.from('frameworks').update(frameworkItem).eq('id', fw.id);
           if (error) {
             console.error("Supabase updateFramework failed:", error);
+            await get().refreshData();
             alert(`Failed to update framework: ${error.message}`);
             return;
           }
         } catch (e) {
           console.error("Supabase updateFramework exception:", e);
+          await get().refreshData();
           alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
           return;
         }
       }
+      get().addSystemNotification({
+        id: `update-fw-${Date.now()}`,
+        title: '🗂️ Framework Updated',
+        message: `"${fw.name}" details updated successfully.`,
+        type: 'system',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
       await get().refreshData();
     },
 
     deleteFramework: async (fwId) => {
+      set((state) => ({
+        frameworks: state.frameworks.filter((f) => f.id !== fwId)
+      }));
+      db.deleteFramework(fwId);
+
       if (supabase) {
         try {
           const { error } = await supabase.from('frameworks').delete().eq('id', fwId);
           if (error) {
             console.error("Supabase deleteFramework failed:", error);
+            await get().refreshData();
             alert(`Failed to delete framework: ${error.message}`);
             return;
           }
         } catch (e) {
           console.error("Supabase deleteFramework exception:", e);
+          await get().refreshData();
           alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
           return;
         }
       }
+      get().addSystemNotification({
+        id: `del-fw-${Date.now()}`,
+        title: '🗑️ Framework Removed',
+        message: `Framework was removed successfully.`,
+        type: 'system',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
       await get().refreshData();
     },
 

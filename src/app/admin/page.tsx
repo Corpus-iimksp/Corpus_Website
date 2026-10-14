@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
-import { Competition, MentorApplication } from '@/lib/db';
+import { Competition, MentorApplication, Framework } from '@/lib/db';
 import { 
   Users, 
   UserCheck, 
@@ -16,7 +16,10 @@ import {
   Plus,
   Sparkles,
   BarChart,
-  ShieldAlert
+  ShieldAlert,
+  Eye,
+  BookOpen,
+  Layers
 } from 'lucide-react';
 import { 
   BarChart as RechartsBarChart, 
@@ -55,11 +58,7 @@ export default function AdminDashboard() {
     frameworks,
     addFramework,
     updateFramework,
-    deleteFramework,
-    quizzes,
-    addQuiz,
-    updateQuiz,
-    deleteQuiz
+    deleteFramework
   } = useStore();
 
   const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'mentors' | 'competitions' | 'sessions' | 'admins' | 'decks'>('analytics');
@@ -71,7 +70,7 @@ export default function AdminDashboard() {
   const [editingMentorId, setEditingMentorId] = useState<string | null>(null);
   const [editingDeckId, setEditingDeckId] = useState<string | null>(null);
 
-  const [activeHubTab, setActiveHubTab] = useState<'decks' | 'frameworks' | 'quizzes'>('decks');
+  const [activeHubTab, setActiveHubTab] = useState<'decks' | 'frameworks'>('decks');
 
   // Framework states
   const [editingFrameworkId, setEditingFrameworkId] = useState<string | null>(null);
@@ -80,28 +79,23 @@ export default function AdminDashboard() {
   const [fwFront, setFwFront] = useState('');
   const [fwBack, setFwBack] = useState('');
   const [fwGradient, setFwGradient] = useState('from-indigo-600 to-purple-600');
+  const [previewFramework, setPreviewFramework] = useState<Framework | null>(null);
 
-  // Quiz states
-  const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
-  const [quizTitleText, setQuizTitleText] = useState('');
-  const [quizQuestions, setQuizQuestions] = useState<{ q: string; options: string[]; correctIndex: number; feedback: string }[]>([]);
-  
-  // Quiz Question builder form inputs
-  const [qText, setQText] = useState('');
-  const [qOptA, setQOptA] = useState('');
-  const [qOptB, setQOptB] = useState('');
-  const [qOptC, setQOptC] = useState('');
-  const [qOptD, setQOptD] = useState('');
-  const [qCorrectIndex, setQCorrectIndex] = useState(0);
-  const [qFeedback, setQFeedback] = useState('');
-  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
+  // Delete Confirmation Modal State
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    type: 'deck' | 'framework' | 'competition' | 'mentor';
+    id: string;
+    title: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Slide Decks Form States
   const [deckTitle, setDeckTitle] = useState('');
   const [deckCompetition, setDeckCompetition] = useState('');
+  const [deckCompany, setDeckCompany] = useState('');
   const [deckYear, setDeckYear] = useState('2025');
   const [deckTeamName, setDeckTeamName] = useState('');
-  const [deckTags, setDeckTags] = useState('');
   const [deckFileUrl, setDeckFileUrl] = useState('');
   const [deckPreviewImage, setDeckPreviewImage] = useState('');
 
@@ -262,17 +256,15 @@ export default function AdminDashboard() {
   // Handle Slide Deck creation & edit
   const handleCreateDeck = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!deckTitle || !deckCompetition || !deckYear || !deckTeamName) return;
-
-    const tagsList = deckTags.split(',').map(s => s.trim()).filter(Boolean);
+    if (!deckTitle || !deckCompetition || !deckCompany || !deckYear || !deckTeamName) return;
 
     const deckObj = {
       id: editingDeckId || `deck-${Date.now()}`,
       title: deckTitle,
       competition: deckCompetition,
+      company: deckCompany,
       year: deckYear,
       teamName: deckTeamName,
-      tags: tagsList,
       fileUrl: deckFileUrl || 'https://google.com',
       previewImage: deckPreviewImage || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=600'
     };
@@ -286,9 +278,9 @@ export default function AdminDashboard() {
     // Reset Form
     setDeckTitle('');
     setDeckCompetition('');
+    setDeckCompany('');
     setDeckYear('2025');
     setDeckTeamName('');
-    setDeckTags('');
     setDeckFileUrl('');
     setDeckPreviewImage('');
     setEditingDeckId(null);
@@ -329,70 +321,7 @@ export default function AdminDashboard() {
 
 
 
-  // Handle Quiz creation & edit
-  const handleCreateQuiz = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quizTitleText) return;
-    if (quizQuestions.length === 0) {
-      alert('Please add at least one question to the quiz.');
-      return;
-    }
 
-    const quizObj = {
-      id: editingQuizId || `quiz-${Date.now()}`,
-      title: quizTitleText,
-      questions: quizQuestions
-    };
-
-    if (editingQuizId) {
-      updateQuiz(quizObj);
-    } else {
-      addQuiz(quizObj);
-    }
-
-    // Reset Form
-    setQuizTitleText('');
-    setQuizQuestions([]);
-    setEditingQuizId(null);
-    clearQuestionBuilder();
-
-    alert(editingQuizId ? 'Success: Practice Quiz updated!' : 'Success: Practice Quiz published!');
-  };
-
-  const clearQuestionBuilder = () => {
-    setQText('');
-    setQOptA('');
-    setQOptB('');
-    setQOptC('');
-    setQOptD('');
-    setQCorrectIndex(0);
-    setQFeedback('');
-    setEditingQuestionIndex(null);
-  };
-
-  const handleAddQuestionToBuilder = () => {
-    if (!qText || !qOptA || !qOptB || !qOptC || !qOptD) {
-      alert('Please fill out the question and all four options.');
-      return;
-    }
-
-    const newQuestionObj = {
-      q: qText,
-      options: [qOptA, qOptB, qOptC, qOptD],
-      correctIndex: qCorrectIndex,
-      feedback: qFeedback || 'None'
-    };
-
-    if (editingQuestionIndex !== null) {
-      const updated = [...quizQuestions];
-      updated[editingQuestionIndex] = newQuestionObj;
-      setQuizQuestions(updated);
-    } else {
-      setQuizQuestions([...quizQuestions, newQuestionObj]);
-    }
-
-    clearQuestionBuilder();
-  };
 
   // Charts Data from Supabase
   const monthlyGrowthData = (() => {
@@ -617,7 +546,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Secondary Quick Metrics */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="glass-panel p-5 rounded-2xl border-white/5">
               <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Opportunities</span>
               <span className="text-3xl font-black text-amber-400 mt-1 block">{competitions.length}</span>
@@ -634,10 +563,6 @@ export default function AdminDashboard() {
             <div className="glass-panel p-5 rounded-2xl border-white/5">
               <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Frameworks</span>
               <span className="text-3xl font-black text-indigo-400 mt-1 block">{frameworks.length}</span>
-            </div>
-            <div className="glass-panel p-5 rounded-2xl border-white/5">
-              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Practice Quizzes</span>
-              <span className="text-3xl font-black text-indigo-400 mt-1 block">{quizzes.length}</span>
             </div>
           </div>
 
@@ -998,12 +923,14 @@ export default function AdminDashboard() {
                             </svg>
                           </button>
                           <button
-                            onClick={() => {
-                              if (confirm(`Are you sure you want to delete ${mentor.name}'s profile?`)) {
-                                deleteMentor(mentor.id);
-                              }
-                            }}
-                            className="p-1.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-lg"
+                            type="button"
+                            onClick={() => setDeleteConfirm({
+                              isOpen: true,
+                              type: 'mentor',
+                              id: mentor.id,
+                              title: mentor.name
+                            })}
+                            className="p-1.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
                             title="Delete Mentor Profile"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1182,13 +1109,15 @@ export default function AdminDashboard() {
                             </svg>
                           </button>
                           <button
-                            onClick={() => {
-                              if (confirm('Are you sure you want to delete this competition?')) {
-                                deleteCompetition(comp.id);
-                              }
-                            }}
-                            className="p-1.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-lg"
-                            title="Delete"
+                            type="button"
+                            onClick={() => setDeleteConfirm({
+                              isOpen: true,
+                              type: 'competition',
+                              id: comp.id,
+                              title: comp.title
+                            })}
+                            className="p-1.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                            title="Delete Opportunity"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1369,12 +1298,6 @@ export default function AdminDashboard() {
             >
               🗂️ Interactive Frameworks ({frameworks.length})
             </button>
-            <button
-              onClick={() => setActiveHubTab('quizzes')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${activeHubTab === 'quizzes' ? 'bg-indigo-950 text-indigo-400 border border-indigo-500/20' : 'text-zinc-500 hover:text-zinc-300'}`}
-            >
-              🧩 Mock Practice Quizzes ({quizzes.length})
-            </button>
           </div>
 
           {/* SUB-PANEL 1: SLIDE DECKS */}
@@ -1439,12 +1362,13 @@ export default function AdminDashboard() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Tags (comma separated)</label>
+                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Company Name</label>
                       <input
                         type="text"
-                        value={deckTags}
-                        onChange={(e) => setDeckTags(e.target.value)}
-                        placeholder="E.g., Consulting, Energy, Pricing"
+                        required
+                        value={deckCompany}
+                        onChange={(e) => setDeckCompany(e.target.value)}
+                        placeholder="E.g., Hindustan Unilever, McKinsey, ITC"
                         className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-200 focus:outline-none"
                       />
                     </div>
@@ -1511,9 +1435,9 @@ export default function AdminDashboard() {
                         onClick={() => {
                           setDeckTitle('');
                           setDeckCompetition('');
+                          setDeckCompany('');
                           setDeckYear('2025');
                           setDeckTeamName('');
-                          setDeckTags('');
                           setDeckFileUrl('');
                           setDeckPreviewImage('');
                           setEditingDeckId(null);
@@ -1536,7 +1460,8 @@ export default function AdminDashboard() {
                     <table className="w-full text-left">
                       <thead>
                         <tr className="border-b border-white/5 text-zinc-500 font-bold bg-zinc-900/40">
-                          <th className="p-4">Presentation Info</th>
+                          <th className="p-4">Competition & Presentation</th>
+                          <th className="p-4">Company</th>
                           <th className="p-4">Team</th>
                           <th className="p-4 text-center">Action</th>
                         </tr>
@@ -1545,8 +1470,13 @@ export default function AdminDashboard() {
                         {winningDecks.map((deck) => (
                           <tr key={deck.id} className="hover:bg-zinc-900/10">
                             <td className="p-4 font-bold text-zinc-200">
-                              {deck.title}
-                              <span className="block text-[10px] text-zinc-500 font-medium">{deck.competition} ({deck.year})</span>
+                              {deck.competition}
+                              <span className="block text-[10px] text-zinc-400 font-normal">{deck.title} ({deck.year})</span>
+                            </td>
+                            <td className="p-4">
+                              <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold text-[11px]">
+                                {deck.company || '—'}
+                              </span>
                             </td>
                             <td className="p-4 text-zinc-400">{deck.teamName}</td>
                             <td className="p-4 text-center">
@@ -1555,9 +1485,9 @@ export default function AdminDashboard() {
                                   setEditingDeckId(deck.id);
                                   setDeckTitle(deck.title);
                                   setDeckCompetition(deck.competition);
+                                  setDeckCompany(deck.company || '');
                                   setDeckYear(deck.year);
                                   setDeckTeamName(deck.teamName);
-                                  setDeckTags(deck.tags ? deck.tags.join(', ') : '');
                                   setDeckFileUrl(deck.fileUrl || '');
                                   setDeckPreviewImage(deck.previewImage || '');
                                 }}
@@ -1569,13 +1499,15 @@ export default function AdminDashboard() {
                                 </svg>
                               </button>
                               <button
-                                onClick={() => {
-                                  if (confirm(`Are you sure you want to delete "${deck.title}"?`)) {
-                                    deleteWinningDeck(deck.id);
-                                  }
-                                }}
-                                className="p-1.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-lg"
-                                title="Delete Deck"
+                                type="button"
+                                onClick={() => setDeleteConfirm({
+                                  isOpen: true,
+                                  type: 'deck',
+                                  id: deck.id,
+                                  title: deck.title
+                                })}
+                                className="p-1.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                                title="Delete Slide Deck"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1633,7 +1565,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Front description (Summarized Goal)</label>
+                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Executive Overview (Card Summary)</label>
                       <textarea
                         required
                         rows={3}
@@ -1645,7 +1577,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Back details (Diagnostic Structure / Equations)</label>
+                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Detailed Explanation & Diagnostic Structure (Popup Content)</label>
                       <textarea
                         required
                         rows={6}
@@ -1654,22 +1586,6 @@ export default function AdminDashboard() {
                         placeholder="Profit = (Price x Quantity) - (Fixed + Variable Costs)..."
                         className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-200 focus:outline-none font-mono"
                       />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Card Background Gradient</label>
-                      <select
-                        value={fwGradient}
-                        onChange={(e) => setFwGradient(e.target.value)}
-                        className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-200 focus:outline-none"
-                      >
-                        <option value="from-indigo-600 to-purple-600">Indigo to Purple</option>
-                        <option value="from-purple-600 to-indigo-600">Purple to Indigo</option>
-                        <option value="from-indigo-600 to-sky-600">Indigo to Sky</option>
-                        <option value="from-sky-600 to-purple-600">Sky to Purple</option>
-                        <option value="from-purple-600 to-sky-600">Purple to Sky</option>
-                        <option value="from-sky-600 to-indigo-600">Sky to Indigo</option>
-                      </select>
                     </div>
 
                     <button
@@ -1722,6 +1638,13 @@ export default function AdminDashboard() {
                             <td className="p-4 text-zinc-400">{fw.subtitle}</td>
                             <td className="p-4 text-center">
                               <button
+                                onClick={() => setPreviewFramework(fw)}
+                                className="p-1.5 bg-zinc-800 border border-white/10 text-zinc-300 hover:text-white hover:bg-zinc-700 rounded-lg mr-1.5"
+                                title="Preview Student Modal"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button
                                 onClick={() => {
                                   setEditingFrameworkId(fw.id);
                                   setFwName(fw.name);
@@ -1738,12 +1661,14 @@ export default function AdminDashboard() {
                                 </svg>
                               </button>
                               <button
-                                onClick={() => {
-                                  if (confirm(`Are you sure you want to delete "${fw.name}"?`)) {
-                                    deleteFramework(fw.id);
-                                  }
-                                }}
-                                className="p-1.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-lg"
+                                type="button"
+                                onClick={() => setDeleteConfirm({
+                                  isOpen: true,
+                                  type: 'framework',
+                                  id: fw.id,
+                                  title: fw.name
+                                })}
+                                className="p-1.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
                                 title="Delete Framework"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1760,244 +1685,148 @@ export default function AdminDashboard() {
             </div>
           )}
 
+        </div>
+      )}
 
-
-          {/* SUB-PANEL 4: QUIZZES */}
-          {activeHubTab === 'quizzes' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-xs">
+      {/* Framework Preview Modal (Admin Control) */}
+      {previewFramework && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setPreviewFramework(null)}
+        >
+          <div 
+            className="glass-panel w-full max-w-2xl max-h-[85vh] rounded-2xl border border-white/10 p-6 sm:p-8 shadow-2xl relative flex flex-col overflow-hidden text-left"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-white/5 pb-4 mb-5 shrink-0">
+              <div className="space-y-1 pr-6">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] uppercase font-black tracking-widest text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20">
+                    {previewFramework.subtitle || 'Consulting Framework'}
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-semibold">Student View Preview</span>
+                </div>
+                <h2 className="text-2xl font-black text-white mt-1">
+                  {previewFramework.name}
+                </h2>
+              </div>
               
-              {/* Quiz Builder form */}
-              <div>
-                <div className="glass-panel p-6 rounded-2xl border-white/5 space-y-4">
-                  <h3 className="text-sm font-black text-zinc-200 uppercase tracking-wider">
-                    {editingQuizId ? 'Edit Practice Quiz' : 'Add Practice Quiz'}
-                  </h3>
-                  
-                  <form onSubmit={handleCreateQuiz} className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-zinc-500 uppercase mb-1">Quiz Title</label>
-                      <input
-                        type="text"
-                        required
-                        value={quizTitleText}
-                        onChange={(e) => setQuizTitleText(e.target.value)}
-                        placeholder="E.g., Practice 3: Advanced Pricing Mechanics"
-                        className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-200 focus:outline-none"
-                      />
-                    </div>
-
-                    <div className="border-t border-white/5 pt-3 mt-3 space-y-3">
-                      <h4 className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">
-                        {editingQuestionIndex !== null ? `Edit Question #${editingQuestionIndex + 1}` : 'Add MCQ Question'}
-                      </h4>
-
-                      <div>
-                        <label className="block text-[9px] font-bold text-zinc-500 uppercase mb-1">Question Description</label>
-                        <input
-                          type="text"
-                          value={qText}
-                          onChange={(e) => setQText(e.target.value)}
-                          placeholder="E.g., What is the target markup percentage in..."
-                          className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-200 focus:outline-none text-[11px]"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-[10px]">
-                        <div>
-                          <label className="block text-zinc-450 mb-0.5">Choice A</label>
-                          <input type="text" value={qOptA} onChange={(e) => setQOptA(e.target.value)} placeholder="Option A" className="w-full bg-zinc-900 border border-white/10 rounded p-1.5 text-zinc-200 focus:outline-none"/>
-                        </div>
-                        <div>
-                          <label className="block text-zinc-450 mb-0.5">Choice B</label>
-                          <input type="text" value={qOptB} onChange={(e) => setQOptB(e.target.value)} placeholder="Option B" className="w-full bg-zinc-900 border border-white/10 rounded p-1.5 text-zinc-200 focus:outline-none"/>
-                        </div>
-                        <div>
-                          <label className="block text-zinc-450 mb-0.5">Choice C</label>
-                          <input type="text" value={qOptC} onChange={(e) => setQOptC(e.target.value)} placeholder="Option C" className="w-full bg-zinc-900 border border-white/10 rounded p-1.5 text-zinc-200 focus:outline-none"/>
-                        </div>
-                        <div>
-                          <label className="block text-zinc-450 mb-0.5">Choice D</label>
-                          <input type="text" value={qOptD} onChange={(e) => setQOptD(e.target.value)} placeholder="Option D" className="w-full bg-zinc-900 border border-white/10 rounded p-1.5 text-zinc-200 focus:outline-none"/>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[9px] font-bold text-zinc-500 uppercase mb-1">Correct Choice</label>
-                        <select
-                          value={qCorrectIndex}
-                          onChange={(e) => setQCorrectIndex(Number(e.target.value))}
-                          className="w-full bg-zinc-900 border border-white/10 rounded-lg p-1.5 text-zinc-200 focus:outline-none"
-                        >
-                          <option value={0}>Option A</option>
-                          <option value={1}>Option B</option>
-                          <option value={2}>Option C</option>
-                          <option value={3}>Option D</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[9px] font-bold text-zinc-500 uppercase mb-1">Answer Explanation (MECE feedback)</label>
-                        <textarea
-                          rows={2}
-                          value={qFeedback}
-                          onChange={(e) => setQFeedback(e.target.value)}
-                          placeholder="Provide the step-by-step logic breakdown..."
-                          className="w-full bg-zinc-900 border border-white/10 rounded-lg p-2 text-zinc-205 focus:outline-none text-[11px]"
-                        />
-                      </div>
-
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={handleAddQuestionToBuilder}
-                          className="flex-1 py-1.5 bg-indigo-650 hover:bg-indigo-750 text-white font-bold rounded-lg transition-colors text-[10px]"
-                        >
-                          {editingQuestionIndex !== null ? 'Save Question Changes' : 'Add Question to Quiz'}
-                        </button>
-                        {editingQuestionIndex !== null && (
-                          <button
-                            type="button"
-                            onClick={clearQuestionBuilder}
-                            className="px-3 py-1.5 bg-zinc-900 border border-white/10 hover:bg-zinc-800 text-zinc-400 rounded-lg text-[10px]"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="border-t border-white/5 pt-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase">Questions Added: {quizQuestions.length}</span>
-                        {quizQuestions.length > 0 && (
-                          <span className="text-[9px] text-emerald-400 font-bold">● Validated Ready</span>
-                        )}
-                      </div>
-                      
-                      {quizQuestions.length > 0 && (
-                        <div className="max-h-[150px] overflow-y-auto space-y-1.5 mb-4 pr-1 border border-white/5 rounded-lg p-2 bg-zinc-900/30 text-[10px]">
-                          {quizQuestions.map((q, idx) => (
-                            <div key={idx} className="flex justify-between items-center p-1.5 bg-zinc-900/50 rounded border border-white/5">
-                              <span className="truncate font-semibold text-zinc-300 max-w-[130px]">
-                                {idx + 1}. {q.q}
-                              </span>
-                              <div className="flex gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingQuestionIndex(idx);
-                                    setQText(q.q);
-                                    setQOptA(q.options[0] || '');
-                                    setQOptB(q.options[1] || '');
-                                    setQOptC(q.options[2] || '');
-                                    setQOptD(q.options[3] || '');
-                                    setQCorrectIndex(q.correctIndex);
-                                    setQFeedback(q.feedback);
-                                  }}
-                                  className="text-indigo-400 font-bold hover:underline"
-                                >
-                                  Edit
-                                </button>
-                                <span className="text-zinc-700">|</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setQuizQuestions(quizQuestions.filter((_, i) => i !== idx));
-                                  }}
-                                  className="text-red-400 font-bold hover:underline"
-                                >
-                                  Del
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={quizQuestions.length === 0}
-                      className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 rounded-xl text-xs font-bold text-black transition-colors disabled:opacity-50 disabled:pointer-events-none"
-                    >
-                      {editingQuizId ? 'Update and Save Quiz' : 'Publish Complete Quiz'}
-                    </button>
-
-                    {editingQuizId && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setQuizTitleText('');
-                          setQuizQuestions([]);
-                          setEditingQuizId(null);
-                          clearQuestionBuilder();
-                        }}
-                        className="w-full mt-2 py-2 bg-zinc-900 border border-white/10 hover:bg-zinc-800 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 transition-colors"
-                      >
-                        Cancel Quiz Edit
-                      </button>
-                    )}
-                  </form>
-                </div>
-              </div>
-
-              {/* List */}
-              <div className="lg:col-span-2 space-y-4">
-                <h3 className="text-sm font-black text-zinc-200 uppercase tracking-wider mb-2">Practice Quizzes Pool ({quizzes.length})</h3>
-                <div className="bg-zinc-950/40 border border-white/5 rounded-2xl overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="border-b border-white/5 text-zinc-500 font-bold bg-zinc-900/40">
-                          <th className="p-4">Quiz Title</th>
-                          <th className="p-4">Questions Count</th>
-                          <th className="p-4 text-center">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {quizzes.map((quiz) => (
-                          <tr key={quiz.id} className="hover:bg-zinc-900/10">
-                            <td className="p-4 font-bold text-zinc-200">
-                              {quiz.title}
-                            </td>
-                            <td className="p-4 text-indigo-400 font-bold">{(quiz.questions || []).length} MCQs</td>
-                            <td className="p-4 text-center">
-                              <button
-                                onClick={() => {
-                                  setEditingQuizId(quiz.id);
-                                  setQuizTitleText(quiz.title);
-                                  setQuizQuestions(quiz.questions || []);
-                                }}
-                                className="p-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 rounded-lg mr-1.5"
-                                title="Edit Quiz"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (confirm(`Are you sure you want to delete "${quiz.title}"?`)) {
-                                    deleteQuiz(quiz.id);
-                                  }
-                                }}
-                                className="p-1.5 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 rounded-lg"
-                                title="Delete Quiz"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
+              <button
+                onClick={() => setPreviewFramework(null)}
+                className="p-1.5 rounded-lg bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                aria-label="Close modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          )}
 
+            {/* Scrollable Content Body */}
+            <div className="space-y-6 overflow-y-auto pr-2">
+              {/* Executive Overview */}
+              <div>
+                <h3 className="text-xs uppercase font-bold text-zinc-400 tracking-wider mb-2 flex items-center gap-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-indigo-400" /> Executive Overview
+                </h3>
+                <p className="text-sm text-zinc-300 leading-relaxed bg-zinc-900/50 p-4 rounded-xl border border-white/5">
+                  {previewFramework.front}
+                </p>
+              </div>
+
+              {/* Detailed Diagnostic Structure */}
+              <div>
+                <h3 className="text-xs uppercase font-bold text-zinc-400 tracking-wider mb-2 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-indigo-400" /> Detailed Explanation & Diagnostic Structure
+                </h3>
+                <div className="bg-zinc-950/80 p-5 rounded-xl border border-indigo-500/20 font-mono text-xs text-zinc-200 whitespace-pre-wrap leading-relaxed select-text shadow-inner">
+                  {previewFramework.back}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-4 mt-4 border-t border-white/5 flex items-center justify-end shrink-0">
+              <button
+                onClick={() => setPreviewFramework(null)}
+                className="px-5 py-2 rounded-xl text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-white transition-colors border border-white/10"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Universal Delete Confirmation Modal */}
+      {deleteConfirm && deleteConfirm.isOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150"
+          onClick={() => {
+            if (!isDeleting) setDeleteConfirm(null);
+          }}
+        >
+          <div 
+            className="glass-panel w-full max-w-md rounded-2xl border border-red-500/30 p-6 shadow-2xl relative flex flex-col space-y-4 text-left"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/25 flex items-center justify-center text-red-400 shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-white">
+                  Delete {
+                    deleteConfirm.type === 'deck' ? 'Slide Deck' : 
+                    deleteConfirm.type === 'framework' ? 'Interactive Framework' : 
+                    deleteConfirm.type === 'competition' ? 'Opportunity' : 'Mentor'
+                  }?
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  This action will permanently delete this item from the platform.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-zinc-950/70 p-3.5 rounded-xl border border-white/5 text-xs text-zinc-300">
+              Are you sure you want to delete <strong className="text-white font-bold">&ldquo;{deleteConfirm.title}&rdquo;</strong>?
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors border border-white/5 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={async () => {
+                  try {
+                    setIsDeleting(true);
+                    if (deleteConfirm.type === 'deck') {
+                      await deleteWinningDeck(deleteConfirm.id);
+                    } else if (deleteConfirm.type === 'framework') {
+                      await deleteFramework(deleteConfirm.id);
+                    } else if (deleteConfirm.type === 'competition') {
+                      await deleteCompetition(deleteConfirm.id);
+                    } else if (deleteConfirm.type === 'mentor') {
+                      await deleteMentor(deleteConfirm.id);
+                    }
+                  } finally {
+                    setIsDeleting(false);
+                    setDeleteConfirm(null);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-colors shadow-lg shadow-red-600/20 flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isDeleting ? 'Deleting...' : 'Confirm Delete'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
