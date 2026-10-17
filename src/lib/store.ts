@@ -26,6 +26,7 @@ interface AppState {
   meetings: Meeting[];
   winningDecks: WinningDeck[];
   students: Student[];
+  admins: UserProfile[];
   frameworks: Framework[];
   quizzes: Quiz[];
   
@@ -120,6 +121,7 @@ export const useStore = create<AppState>((set, get) => {
     meetings: [],
     winningDecks: [],
     students: [],
+    admins: [],
     frameworks: [],
     quizzes: [],
 
@@ -148,7 +150,8 @@ export const useStore = create<AppState>((set, get) => {
           const { data, error } = await supabase.from('users').select('*').eq('email', emailLower).maybeSingle();
           if (data) {
             profile = data as UserProfile;
-            const expectedRole = isSystemAdmin ? 'admin' : (profile.role === 'admin' ? 'student' : profile.role);
+            // Retain admin role if granted via database/website, and ensure system admins always get admin
+            const expectedRole = isSystemAdmin ? 'admin' : profile.role;
             if (profile.role !== expectedRole) {
               profile.role = expectedRole;
               await supabase.from('users').update({ role: expectedRole }).eq('email', emailLower);
@@ -359,22 +362,25 @@ export const useStore = create<AppState>((set, get) => {
           meetings: [],
           winningDecks: [],
           students: [],
+          admins: db.getUsers().filter(u => u.role === 'admin'),
           frameworks: [],
           quizzes: []
         });
 
         const currentUserEmail = localStorage.getItem('corpus_session_email');
         if (currentUserEmail) {
+          const user = db.getUserByEmail(currentUserEmail);
+          const userRole = user ? (user.role === 'mentor' ? 'student' : user.role) : 'student';
           set({
-            currentUser: null,
-            currentRole: 'student',
-            currentStudent: null,
+            currentUser: user,
+            currentRole: userRole as UserRole,
+            currentStudent: user as unknown as Student,
             currentMentor: null
           });
         }
       } else {
         try {
-          const [compRes, mentorRes, bookingRes, meetingRes, deckRes, studentRes, fwRes, quizRes] = await Promise.all([
+          const [compRes, mentorRes, bookingRes, meetingRes, deckRes, studentRes, fwRes, quizRes, adminRes] = await Promise.all([
             client.from('competitions').select('*'),
             client.from('users').select('*').eq('role', 'mentor'),
             client.from('bookings').select('*'),
@@ -382,7 +388,8 @@ export const useStore = create<AppState>((set, get) => {
             client.from('winning_decks').select('*'),
             client.from('users').select('*').eq('role', 'student'),
             client.from('frameworks').select('*'),
-            client.from('quizzes').select('*')
+            client.from('quizzes').select('*'),
+            client.from('users').select('*').eq('role', 'admin')
           ]);
 
           const liveCompetitions = compRes.data || [];
@@ -401,6 +408,7 @@ export const useStore = create<AppState>((set, get) => {
             previewImage: deck.previewimage !== undefined ? deck.previewimage : deck.previewImage
           }));
           const liveStudents = (studentRes.data as unknown as Student[]) || [];
+          const liveAdmins = (adminRes.data as unknown as UserProfile[]) || [];
           const liveFrameworks = fwRes.data || [];
           const liveQuizzes = quizRes.data || [];
 
@@ -411,6 +419,7 @@ export const useStore = create<AppState>((set, get) => {
             meetings: liveMeetings,
             winningDecks: liveDecks,
             students: liveStudents,
+            admins: liveAdmins,
             frameworks: liveFrameworks,
             quizzes: liveQuizzes
           });
@@ -421,7 +430,8 @@ export const useStore = create<AppState>((set, get) => {
             const { data: profile } = await client.from('users').select('*').eq('email', currentUserEmail).maybeSingle();
             if (profile) {
               const updatedProfile = { ...profile } as UserProfile;
-              const expectedRole = isSystemAdmin ? 'admin' : (profile.role === 'admin' ? 'student' : profile.role);
+              // Preserve admin status granted via database/website
+              const expectedRole = isSystemAdmin ? 'admin' : profile.role;
               if (profile.role !== expectedRole) {
                 updatedProfile.role = expectedRole;
                 await client.from('users').update({ role: expectedRole }).eq('email', currentUserEmail);
@@ -758,6 +768,11 @@ export const useStore = create<AppState>((set, get) => {
 
     grantAdmin: async (email) => {
       const emailLower = email.trim().toLowerCase();
+      if (!emailLower) return;
+      if (!emailLower.endsWith('@iimkashipur.ac.in')) {
+        alert('Invalid email. Admin accounts must belong to @iimkashipur.ac.in.');
+        return;
+      }
       if (supabase) {
         try {
           const { data: existingUser, error: selectError } = await supabase.from('users').select('*').eq('email', emailLower).maybeSingle();
@@ -797,6 +812,8 @@ export const useStore = create<AppState>((set, get) => {
           alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
           return;
         }
+      } else {
+        db.grantAdmin(emailLower);
       }
       
       get().addSystemNotification({
@@ -811,6 +828,14 @@ export const useStore = create<AppState>((set, get) => {
 
     revokeAdmin: async (email) => {
       const emailLower = email.trim().toLowerCase();
+      const envAdmins = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || 'teamcorpus@iimkashipur.ac.in')
+        .split(',')
+        .map(e => e.trim().toLowerCase())
+        .filter(Boolean);
+      if (envAdmins.includes(emailLower)) {
+        alert('Cannot revoke access for primary system root administrators.');
+        return;
+      }
       if (supabase) {
         try {
           const { error } = await supabase.from('users').update({ role: 'student' }).eq('email', emailLower);
@@ -824,6 +849,8 @@ export const useStore = create<AppState>((set, get) => {
           alert(`An unexpected error occurred: ${e instanceof Error ? e.message : String(e)}`);
           return;
         }
+      } else {
+        db.revokeAdmin(emailLower);
       }
 
       get().addSystemNotification({

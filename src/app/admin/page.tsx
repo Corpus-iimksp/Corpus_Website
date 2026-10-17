@@ -17,6 +17,11 @@ import {
   Sparkles,
   BarChart,
   ShieldAlert,
+  Shield,
+  ShieldCheck,
+  UserPlus,
+  AlertCircle,
+  Crown,
   Eye,
   BookOpen,
   Layers
@@ -55,6 +60,7 @@ export default function AdminDashboard() {
     updateWinningDeck,
     deleteWinningDeck,
     students,
+    admins,
     frameworks,
     addFramework,
     updateFramework,
@@ -63,6 +69,10 @@ export default function AdminDashboard() {
 
   const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'mentors' | 'competitions' | 'sessions' | 'admins' | 'decks'>('analytics');
   const [adminEmailInput, setAdminEmailInput] = useState('');
+  const [isGrantingAdmin, setIsGrantingAdmin] = useState(false);
+  const [adminActionFeedback, setAdminActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [revokeConfirm, setRevokeConfirm] = useState<{ isOpen: boolean; email: string; name: string } | null>(null);
+  const [isRevokingAdmin, setIsRevokingAdmin] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   // Edit state trackers
@@ -457,6 +467,71 @@ export default function AdminDashboard() {
     .map(e => e.trim().toLowerCase())
     .filter(Boolean);
 
+  // Combine database-granted admins with system root env admins
+  const adminMap = new Map<string, { email: string; name: string; isSystemRoot: boolean; role: string; id?: string }>();
+  
+  // 1. Root system admins defined in environment
+  envAdmins.forEach(email => {
+    adminMap.set(email, {
+      email,
+      name: email.split('@')[0].split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
+      isSystemRoot: true,
+      role: 'admin'
+    });
+  });
+
+  // 2. Database admins (elevated through website or database)
+  (admins || []).forEach(admin => {
+    const emailLower = admin.email.toLowerCase();
+    const existing = adminMap.get(emailLower);
+    adminMap.set(emailLower, {
+      id: admin.id,
+      email: emailLower,
+      name: admin.name || existing?.name || emailLower.split('@')[0],
+      isSystemRoot: envAdmins.includes(emailLower),
+      role: 'admin'
+    });
+  });
+
+  const allAdmins = Array.from(adminMap.values());
+
+  const handleGrantAdminSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = adminEmailInput.trim().toLowerCase();
+    if (!cleanEmail) return;
+    if (!cleanEmail.endsWith('@iimkashipur.ac.in')) {
+      setAdminActionFeedback({ type: 'error', message: 'Email must end with @iimkashipur.ac.in' });
+      return;
+    }
+    try {
+      setIsGrantingAdmin(true);
+      setAdminActionFeedback(null);
+      await grantAdmin(cleanEmail);
+      setAdminEmailInput('');
+      setAdminActionFeedback({ type: 'success', message: `Administrator access successfully granted to ${cleanEmail}.` });
+      setTimeout(() => setAdminActionFeedback(null), 5000);
+    } catch (err: unknown) {
+      setAdminActionFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to grant admin access' });
+    } finally {
+      setIsGrantingAdmin(false);
+    }
+  };
+
+  const handleRevokeAdminConfirm = async () => {
+    if (!revokeConfirm) return;
+    try {
+      setIsRevokingAdmin(true);
+      await revokeAdmin(revokeConfirm.email);
+      setRevokeConfirm(null);
+      setAdminActionFeedback({ type: 'success', message: `Admin privileges revoked for ${revokeConfirm.email}.` });
+      setTimeout(() => setAdminActionFeedback(null), 5000);
+    } catch (err: unknown) {
+      setAdminActionFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to revoke admin privileges' });
+    } finally {
+      setIsRevokingAdmin(false);
+    }
+  };
+
   if (mounted && (!currentUser || currentRole !== 'admin')) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 max-w-md mx-auto space-y-6">
@@ -465,8 +540,8 @@ export default function AdminDashboard() {
         </div>
         <div className="space-y-2">
           <h2 className="text-xl font-bold text-white">Admin Control Locked</h2>
-          <p className="text-xs text-zinc-500 leading-relaxed">
-            Authorized access strictly restricted to the official system administrator accounts: <span className="text-amber-400 font-bold">{envAdmins.join(', ')}</span>.
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            Authorized access is restricted to administrator accounts. Please sign in with an account that has been granted administrator access.
           </p>
         </div>
       </div>
@@ -523,6 +598,12 @@ export default function AdminDashboard() {
             className={`px-3 py-1.5 rounded-lg transition-colors ${activeAdminTab === 'decks' ? 'bg-zinc-800 text-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}
           >
             📖 Manage Learning Hub
+          </button>
+          <button
+            onClick={() => setActiveAdminTab('admins')}
+            className={`px-3 py-1.5 rounded-lg transition-colors ${activeAdminTab === 'admins' ? 'bg-zinc-800 text-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            🛡️ Admin Access ({allAdmins.length})
           </button>
         </div>
       </div>
@@ -1688,6 +1769,190 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* 5. ADMIN ACCESS CONTROL PANEL */}
+      {activeAdminTab === 'admins' && (
+        <div className="space-y-8 animate-in fade-in duration-200">
+          
+          {/* Top Banner / Stats */}
+          <div className="glass-panel p-6 rounded-2xl border-white/5 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                  <Shield className="w-5 h-5" />
+                </span>
+                <h2 className="text-xl font-bold text-white">Administrator Access Control</h2>
+              </div>
+              <p className="text-xs text-zinc-400 max-w-2xl mt-1 leading-relaxed">
+                Add and manage platform administrators directly from this portal. Newly granted admins can immediately access the control panel without requiring any Vercel configuration updates or website redeployments.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="bg-zinc-950/70 border border-white/5 rounded-xl px-5 py-3 text-center">
+                <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Active Admins</div>
+                <div className="text-2xl font-black text-amber-400">{allAdmins.length}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Feedback Alert */}
+          {adminActionFeedback && (
+            <div className={`p-4 rounded-xl border text-xs font-semibold flex items-center justify-between gap-3 ${
+              adminActionFeedback.type === 'success' 
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                : 'bg-red-500/10 border-red-500/20 text-red-400'
+            }`}>
+              <div className="flex items-center gap-2">
+                {adminActionFeedback.type === 'success' ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                <span>{adminActionFeedback.message}</span>
+              </div>
+              <button 
+                onClick={() => setAdminActionFeedback(null)} 
+                className="text-zinc-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Grant Admin Section */}
+          <div className="glass-panel p-6 rounded-2xl border-white/5 space-y-4">
+            <div className="flex items-center gap-2">
+              <UserPlus className="w-4 h-4 text-amber-400" />
+              <h3 className="text-sm font-extrabold text-white">Grant Administrator Privileges</h3>
+            </div>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              Enter an official <span className="text-amber-400 font-mono">@iimkashipur.ac.in</span> email address. If the student already exists in the system, their role will be upgraded to Admin instantly. If they haven&apos;t logged in before, an admin profile will be provisioned so they get full access on their first login.
+            </p>
+
+            <form onSubmit={handleGrantAdminSubmit} className="flex flex-col sm:flex-row gap-3 pt-1">
+              <div className="relative flex-1">
+                <input
+                  type="email"
+                  value={adminEmailInput}
+                  onChange={(e) => setAdminEmailInput(e.target.value)}
+                  placeholder="e.g. name.mbaa25xxx@iimkashipur.ac.in"
+                  required
+                  className="w-full bg-zinc-950/80 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400 transition-colors"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isGrantingAdmin || !adminEmailInput.trim()}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-zinc-950 transition-colors shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50 shrink-0"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>{isGrantingAdmin ? 'Granting Access...' : 'Grant Admin Access'}</span>
+              </button>
+            </form>
+
+            {/* Quick Select from existing students */}
+            {students.length > 0 && (
+              <div className="pt-3 border-t border-white/5 flex flex-wrap items-center gap-2.5">
+                <span className="text-[11px] text-zinc-500 font-medium">Or select from registered students:</span>
+                <select
+                  aria-label="Quick select registered student"
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setAdminEmailInput(e.target.value);
+                    }
+                  }}
+                  defaultValue=""
+                  className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-amber-400 max-w-xs"
+                >
+                  <option value="" disabled>Choose a student to elevate...</option>
+                  {students.filter(s => !allAdmins.some(a => a.email.toLowerCase() === s.email.toLowerCase())).map(s => (
+                    <option key={s.id} value={s.email}>{s.name} ({s.email})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Administrators Table */}
+          <div className="glass-panel rounded-2xl border-white/5 overflow-hidden">
+            <div className="p-5 border-b border-white/5 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-extrabold text-white">Current Platform Administrators</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">List of all accounts authorized to access and manage the platform.</p>
+              </div>
+              <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                {allAdmins.length} Authorized
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-zinc-950/50 text-zinc-500 uppercase font-black tracking-wider text-[10px] border-b border-white/5">
+                  <tr>
+                    <th className="py-3 px-4">Administrator</th>
+                    <th className="py-3 px-4">Email</th>
+                    <th className="py-3 px-4">Authority Type</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 text-zinc-300">
+                  {allAdmins.map((admin) => {
+                    const isSelf = currentUser?.email?.toLowerCase() === admin.email.toLowerCase();
+                    return (
+                      <tr key={admin.email} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-xs uppercase">
+                              {admin.name ? admin.name.charAt(0) : 'A'}
+                            </div>
+                            <div>
+                              <div className="font-bold text-white flex items-center gap-1.5">
+                                {admin.name}
+                                {isSelf && (
+                                  <span className="text-[10px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.2 rounded border border-amber-500/30">
+                                    You
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-zinc-400">
+                          {admin.email}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          {admin.isSystemRoot ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                              <Crown className="w-3 h-3" /> System Root
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                              <ShieldCheck className="w-3 h-3" /> Platform Admin
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          {admin.isSystemRoot ? (
+                            <span className="text-[10px] text-zinc-500 italic">Protected Root</span>
+                          ) : isSelf ? (
+                            <span className="text-[10px] text-zinc-500 italic">Active Session</span>
+                          ) : (
+                            <button
+                              onClick={() => setRevokeConfirm({ isOpen: true, email: admin.email, name: admin.name })}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-colors inline-flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Revoke</span>
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      )}
+
       {/* Framework Preview Modal (Admin Control) */}
       {previewFramework && (
         <div 
@@ -1824,6 +2089,59 @@ export default function AdminDashboard() {
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>{isDeleting ? 'Deleting...' : 'Confirm Delete'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revoke Admin Confirmation Modal */}
+      {revokeConfirm && revokeConfirm.isOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150"
+          onClick={() => {
+            if (!isRevokingAdmin) setRevokeConfirm(null);
+          }}
+        >
+          <div 
+            className="glass-panel w-full max-w-md rounded-2xl border border-red-500/30 p-6 shadow-2xl relative flex flex-col space-y-4 text-left"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/25 flex items-center justify-center text-red-400 shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-white">
+                  Revoke Administrator Access?
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  This user will no longer be able to access the admin panel or perform administrative tasks.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-zinc-950/70 p-3.5 rounded-xl border border-white/5 text-xs text-zinc-300">
+              Are you sure you want to revoke admin privileges for <strong className="text-white font-bold">&ldquo;{revokeConfirm.name} ({revokeConfirm.email})&rdquo;</strong>?
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isRevokingAdmin}
+                onClick={() => setRevokeConfirm(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors border border-white/5 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isRevokingAdmin}
+                onClick={handleRevokeAdminConfirm}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-colors shadow-lg shadow-red-600/20 flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isRevokingAdmin ? 'Revoking...' : 'Confirm Revoke'}</span>
               </button>
             </div>
           </div>
